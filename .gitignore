@@ -1,0 +1,40 @@
+# ==============================================================================
+# VibeTerm — Git Ignore Configuration
+# ==============================================================================
+
+# Binaries and compiled object files
+dist/
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.syso
+*.o
+*.a
+
+# Test artifacts and coverage reports
+*.test
+*.out
+coverage.txt
+coverage.html
+profile.pprof
+
+# IDE and editor workspaces
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.fleet/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Local development credentials and runtime caches
+.vibeterm/
+*.pem
+*.key
+*.tmp

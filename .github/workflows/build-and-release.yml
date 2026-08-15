@@ -1,0 +1,286 @@
+name: ⚡ VibeTerm CI/CD & Multi-Platform Release
+
+on:
+  push:
+    branches: [main, master, develop]
+    tags:
+      - "v*.*.*"
+      - "v*"
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  GOTOOLCHAIN: auto
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # 🧪 Unit Tests & Static Analysis
+  # ----------------------------------------------------------------------------
+  test:
+    name: 🧪 Run Tests & Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Install Linux Graphics & CGO Headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1-mesa-dev xorg-dev libwayland-dev \
+            libxcursor-dev libxrandr-dev libxinerama-dev \
+            libxi-dev libxxf86vm-dev libxkbcommon-dev
+
+      - name: Verify Module Integrity
+        run: go mod verify
+
+      - name: Run Go Vet
+        run: go vet ./internal/terminal ./internal/config ./internal/scanner ./internal/ssh ./internal/forwarding ./internal/ai
+
+      - name: Run Unit Tests with Race Detector
+        run: go test -v -race ./internal/terminal ./internal/config ./internal/scanner ./internal/automation ./internal/gitops ./internal/ai ./internal/forwarding
+
+  # ----------------------------------------------------------------------------
+  # 🐧 Linux Build (x86_64)
+  # ----------------------------------------------------------------------------
+  build-linux:
+    name: 🐧 Build Linux x86_64
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Install Linux Desktop Dev Headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1-mesa-dev xorg-dev libwayland-dev \
+            libxcursor-dev libxrandr-dev libxinerama-dev \
+            libxi-dev libxxf86vm-dev libxkbcommon-dev
+
+      - name: Extract Tag / Version
+        id: meta
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          if [[ "${VERSION}" != v* ]]; then
+            VERSION="1.0.0-${GITHUB_SHA::8}"
+          else
+            VERSION=${VERSION#v}
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          echo "time=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Compile Native Linux Binary
+        run: |
+          mkdir -p dist/bin
+          CGO_ENABLED=1 CC=gcc GOOS=linux GOARCH=amd64 \
+          go build -trimpath -ldflags="-s -w \
+            -X 'vibeterm/internal/config.Version=${{ steps.meta.outputs.version }}' \
+            -X 'vibeterm/internal/config.GitCommit=${{ steps.meta.outputs.commit }}' \
+            -X 'vibeterm/internal/config.BuildTime=${{ steps.meta.outputs.time }}'" \
+            -o dist/bin/vibeterm ./cmd/vibeterm
+
+      - name: Package Linux Archive (.tar.gz)
+        run: |
+          mkdir -p dist/release
+          tar -czf dist/release/vibeterm-v${{ steps.meta.outputs.version }}-linux-amd64.tar.gz \
+            -C dist/bin vibeterm \
+            README.md
+
+      - name: Upload Linux Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibeterm-linux-amd64
+          path: dist/release/*.tar.gz
+          retention-days: 7
+
+  # ----------------------------------------------------------------------------
+  # 🐧 Linux ARM64 Build (aarch64 Cross-Compilation)
+  # ----------------------------------------------------------------------------
+  build-linux-arm64:
+    name: 🐧 Build Linux ARM64 (aarch64)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Install Linux ARM64 Cross-Compiler & Headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            libgl1-mesa-dev xorg-dev libwayland-dev
+
+      - name: Extract Tag / Version
+        id: meta
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          if [[ "${VERSION}" != v* ]]; then
+            VERSION="1.0.0-${GITHUB_SHA::8}"
+          else
+            VERSION=${VERSION#v}
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          echo "time=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Compile Native Linux ARM64 Binary
+        run: |
+          mkdir -p dist/bin dist/release
+          CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc GOOS=linux GOARCH=arm64 \
+          go build -trimpath -ldflags="-s -w \
+            -X 'vibeterm/internal/config.Version=${{ steps.meta.outputs.version }}' \
+            -X 'vibeterm/internal/config.GitCommit=${{ steps.meta.outputs.commit }}' \
+            -X 'vibeterm/internal/config.BuildTime=${{ steps.meta.outputs.time }}'" \
+            -o dist/bin/vibeterm-arm64 ./cmd/vibeterm
+
+      - name: Package Linux ARM64 Archive (.tar.gz)
+        run: |
+          tar -czf dist/release/vibeterm-v${{ steps.meta.outputs.version }}-linux-arm64.tar.gz \
+            -C dist/bin vibeterm-arm64 \
+            README.md
+
+      - name: Upload Linux ARM64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibeterm-linux-arm64
+          path: dist/release/*arm64.tar.gz
+          retention-days: 7
+
+  # ----------------------------------------------------------------------------
+  # 🪟 Windows Build (x86_64 MinGW CGO Cross-Compilation)
+  # ----------------------------------------------------------------------------
+  build-windows:
+    name: 🪟 Build Windows x86_64 (.exe)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Install MinGW-w64 Cross-Compiler & Zip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 zip
+
+      - name: Extract Tag / Version
+        id: meta
+        run: |
+          VERSION=${GITHUB_REF_NAME}
+          if [[ "${VERSION}" != v* ]]; then
+            VERSION="1.0.0-${GITHUB_SHA::8}"
+          else
+            VERSION=${VERSION#v}
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          echo "time=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Compile Windows Resources & Binary
+        run: |
+          mkdir -p dist/bin dist/release
+          x86_64-w64-mingw32-windres -i cmd/vibeterm/vibeterm.rc -O coff -o cmd/vibeterm/vibeterm.syso 2>/dev/null || true
+          
+          CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc GOOS=windows GOARCH=amd64 \
+          go build -trimpath -ldflags="-s -w -H=windowsgui \
+            -X 'vibeterm/internal/config.Version=${{ steps.meta.outputs.version }}' \
+            -X 'vibeterm/internal/config.GitCommit=${{ steps.meta.outputs.commit }}' \
+            -X 'vibeterm/internal/config.BuildTime=${{ steps.meta.outputs.time }}'" \
+            -o dist/bin/vibeterm.exe ./cmd/vibeterm
+          
+          rm -f cmd/vibeterm/vibeterm.syso
+
+      - name: Package Windows Archive (.zip)
+        run: |
+          cd dist/bin
+          zip -j -9 ../release/vibeterm-v${{ steps.meta.outputs.version }}-windows-amd64.zip \
+            vibeterm.exe ../../README.md
+
+      - name: Upload Windows Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vibeterm-windows-amd64
+          path: dist/release/*.zip
+          retention-days: 7
+
+  # ----------------------------------------------------------------------------
+  # 🚀 Automated GitHub Release (On Version Tag v*.*.*)
+  # ----------------------------------------------------------------------------
+  publish-release:
+    name: 🚀 Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-linux-arm64, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Linux x86_64 Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vibeterm-linux-amd64
+          path: release-assets/
+
+      - name: Download Linux ARM64 Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vibeterm-linux-arm64
+          path: release-assets/
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vibeterm-windows-amd64
+          path: release-assets/
+
+      - name: Compute SHA256 Checksums
+        run: |
+          cd release-assets
+          sha256sum *.tar.gz *.zip > checksums.txt
+          echo "=== Computed Checksums ==="
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/*.tar.gz
+            release-assets/*.zip
+            release-assets/checksums.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
