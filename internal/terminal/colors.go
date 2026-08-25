@@ -4,32 +4,32 @@ import "image/color"
 
 // Termius Deep High-Contrast Color Palette
 var (
-	ColorEditorBg       = color.NRGBA{R: 14, G: 16, B: 21, A: 255}    // #0E1015 (Deep Abyss Black)
-	ColorSidebarBg      = color.NRGBA{R: 21, G: 24, B: 33, A: 255}    // #151821 (Dark Navy Gray)
-	ColorActivityBarBg  = color.NRGBA{R: 21, G: 24, B: 33, A: 255}    // #151821
-	ColorTabBarBg       = color.NRGBA{R: 21, G: 24, B: 33, A: 255}    // #151821
-	ColorStatusBarBg    = color.NRGBA{R: 14, G: 16, B: 21, A: 255}    // #0E1015 (Seamless footer)
-	ColorBorder         = color.NRGBA{R: 34, G: 38, B: 50, A: 255}    // #222632 (1px subtle divider)
-	ColorNeonCyan       = color.NRGBA{R: 0, G: 245, B: 212, A: 255}   // #00F5D4 (Primary Accent)
-	ColorBrandPurple    = color.NRGBA{R: 123, G: 97, B: 255, A: 255}  // #7B61FF (Brand Secondary)
+	ColorEditorBg       = color.NRGBA{R: 30, G: 30, B: 30, A: 255}  // #1E1E1E (Cursor Editor)
+	ColorSidebarBg      = color.NRGBA{R: 24, G: 24, B: 24, A: 255}  // #181818 (Cursor Sidebar)
+	ColorActivityBarBg  = color.NRGBA{R: 24, G: 24, B: 24, A: 255}  // #181818
+	ColorTabBarBg       = color.NRGBA{R: 24, G: 24, B: 24, A: 255}  // #181818
+	ColorStatusBarBg    = color.NRGBA{R: 24, G: 24, B: 24, A: 255}  // #181818
+	ColorBorder         = color.NRGBA{R: 51, G: 51, B: 51, A: 255}  // #333333 (Subtle divider)
+	ColorNeonCyan       = color.NRGBA{R: 0, G: 127, B: 212, A: 255} // #007FD4 (Cursor Blue)
+	ColorBrandPurple    = color.NRGBA{R: 0, G: 127, B: 212, A: 255} // #007FD4
 	ColorNeonPurple     = ColorBrandPurple
-	ColorAccentBlue     = color.NRGBA{R: 0, G: 245, B: 212, A: 255}   // #00F5D4
-	ColorAccentHover    = color.NRGBA{R: 24, G: 32, B: 46, A: 255}    // #18202E
-	ColorActiveBorder   = color.NRGBA{R: 0, G: 245, B: 212, A: 255}   // #00F5D4
-	ColorForeground     = color.NRGBA{R: 248, G: 248, B: 242, A: 255} // #F8F8F2 (Crisp Off-White)
+	ColorAccentBlue     = color.NRGBA{R: 0, G: 127, B: 212, A: 255}   // #007FD4
+	ColorAccentHover    = color.NRGBA{R: 42, G: 45, B: 46, A: 255}    // #2A2D2E
+	ColorActiveBorder   = color.NRGBA{R: 0, G: 127, B: 212, A: 255}   // #007FD4
+	ColorForeground     = color.NRGBA{R: 204, G: 204, B: 204, A: 255} // #CCCCCC (Off-White)
 	ColorForegroundPure = color.NRGBA{R: 255, G: 255, B: 255, A: 255} // #FFFFFF
-	ColorDimmedText     = color.NRGBA{R: 160, G: 174, B: 192, A: 255} // #A0AEC0 (Readable Light Gray)
-	ColorGreen          = color.NRGBA{R: 80, G: 250, B: 123, A: 255}  // #50FA7B (Vibrant Green)
-	ColorYellow         = color.NRGBA{R: 241, G: 250, B: 140, A: 255} // #F1FA8C (Vibrant Yellow)
-	ColorRed            = color.NRGBA{R: 255, G: 85, B: 85, A: 255}   // #FF5555 (Vibrant Red)
-	ColorCursor         = color.NRGBA{R: 0, G: 245, B: 212, A: 220}   // Glowing Neon Cyan
+	ColorDimmedText     = color.NRGBA{R: 133, G: 133, B: 133, A: 255} // #858585 (Dimmed)
+	ColorGreen          = color.NRGBA{R: 137, G: 209, B: 133, A: 255} // #89D185 (Soft Green)
+	ColorYellow         = color.NRGBA{R: 204, G: 167, B: 0, A: 255}   // #CCA700 (Soft Yellow)
+	ColorRed            = color.NRGBA{R: 244, G: 135, B: 113, A: 255} // #F48771 (Soft Red)
+	ColorCursor         = color.NRGBA{R: 0, G: 127, B: 212, A: 220}   // #007FD4
 	ColorObsidianBg     = ColorEditorBg                               // Backwards compatibility alias
 	ColorHeaderBg       = ColorTabBarBg                               // Backwards compatibility alias
 )
 
 // ANSI standard 16 colors mapped to high-contrast vibrant terminal palette
 var ANSIColors = [16]color.NRGBA{
-	{R: 14, G: 16, B: 21, A: 255},     // 0: Black (#0E1015)
+	{R: 14, G: 16, B: 21, A: 255},    // 0: Black (#0E1015)
 	{R: 255, G: 85, B: 85, A: 255},   // 1: Red (#FF5555)
 	{R: 80, G: 250, B: 123, A: 255},  // 2: Green (#50FA7B)
 	{R: 241, G: 250, B: 140, A: 255}, // 3: Yellow (#F1FA8C)

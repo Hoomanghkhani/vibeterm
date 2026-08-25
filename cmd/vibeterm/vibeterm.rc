@@ -1,6 +1,0 @@
-#define RT_MANIFEST 24
-#define APP_MANIFEST 1
-
-100 ICON "icon.ico"
-
-APP_MANIFEST RT_MANIFEST "vibeterm.manifest"

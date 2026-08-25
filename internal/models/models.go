@@ -171,13 +171,13 @@ type GitOpsConfig struct {
 
 // TriggerRule executes automated actions on terminal stream match
 type TriggerRule struct {
-	ID        string `json:"id"`
-	HostID    string `json:"hostId,omitempty"` // empty for global
-	Pattern   string `json:"pattern"`
-	IsRegex   bool   `json:"isRegex"`
-	Action    string `json:"action"` // "send_text", "sudo_elevate", "highlight", "notify"
-	Payload   string `json:"payload"`
-	Enabled   bool   `json:"enabled"`
+	ID      string `json:"id"`
+	HostID  string `json:"hostId,omitempty"` // empty for global
+	Pattern string `json:"pattern"`
+	IsRegex bool   `json:"isRegex"`
+	Action  string `json:"action"` // "send_text", "sudo_elevate", "highlight", "notify"
+	Payload string `json:"payload"`
+	Enabled bool   `json:"enabled"`
 }
 
 // Snippet represents a reusable multi-command automation snippet

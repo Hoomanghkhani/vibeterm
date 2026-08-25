@@ -45,14 +45,14 @@ func NewScreenBuffer(cols, rows int) *ScreenBuffer {
 	}
 
 	sb := &ScreenBuffer{
-		Cols:        cols,
-		Rows:        rows,
-		CursorX:     0,
-		CursorY:     0,
-		CurrentFg:   ColorForeground,
-		CurrentBg:   ColorEditorBg,
-		MaxHistory:  2000,
-		Scrollback:  make([][]Cell, 0),
+		Cols:       cols,
+		Rows:       rows,
+		CursorX:    0,
+		CursorY:    0,
+		CurrentFg:  ColorForeground,
+		CurrentBg:  ColorEditorBg,
+		MaxHistory: 2000,
+		Scrollback: make([][]Cell, 0),
 	}
 	sb.Grid = make([][]Cell, rows)
 	for r := range sb.Grid {

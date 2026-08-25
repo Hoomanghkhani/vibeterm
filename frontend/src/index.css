@@ -1,0 +1,68 @@
+@import '@xterm/xterm/css/xterm.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* High Contrast & Crisp Monochrome */
+    --bg-main: #09090b;
+    --bg-card: #121215;
+    --bg-panel: #18181c;
+    --bg-hover: #222228;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border-active: rgba(255, 255, 255, 0.3);
+    --text-main: #ffffff;
+    --text-muted: #cccccc;
+    --text-faint: #888894;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg-main: #ffffff;
+      --bg-card: #f8f8fa;
+      --bg-panel: #eeeeF2;
+      --bg-hover: #e2e2e8;
+      --border-color: rgba(0, 0, 0, 0.1);
+      --border-subtle: rgba(0, 0, 0, 0.05);
+      --border-active: rgba(0, 0, 0, 0.3);
+      --text-main: #000000;
+      --text-muted: #333338;
+      --text-faint: #666670;
+    }
+  }
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Xterm Overrides for Seamless Minimal Look */
+.xterm {
+  padding: 8px;
+  height: 100%;
+}
+
+.xterm .xterm-viewport {
+  background-color: transparent !important;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-active);
+  border-radius: 9999px;
+}
