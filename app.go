@@ -8,6 +8,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"vibeterm/internal/actions"
 	"vibeterm/internal/config"
 	"vibeterm/internal/connection"
 	"vibeterm/internal/diagnostics"
@@ -48,6 +49,7 @@ type App struct {
 	pluginMgr    *plugins.PluginManager
 	importer     *importers.SessionImporter
 	discoveryMgr *providers.DiscoveryManager
+	actionReg    *actions.ActionRegistry
 }
 
 // NewApp creates a new App application struct
@@ -57,6 +59,7 @@ func NewApp() *App {
 	dockerProvider := providers.NewDockerProvider()
 	connManager := connection.GetConnectionManager()
 	discManager := providers.GetDiscoveryManager()
+	actRegistry := actions.GetActionRegistry()
 
 	// Register infrastructure providers
 	provReg.Register(providers.NewLocalProvider())
@@ -83,6 +86,7 @@ func NewApp() *App {
 		pluginMgr:    plugins.GetPluginManager(),
 		importer:     importers.NewSessionImporter(),
 		discoveryMgr: discManager,
+		actionReg:    actRegistry,
 	}
 }
 
@@ -246,6 +250,19 @@ func (a *App) SetResourceAlias(resourceID, alias string) {
 
 func (a *App) ToggleResourceFavorite(resourceID string) bool {
 	return a.discoveryMgr.ToggleFavorite(resourceID)
+}
+
+func (a *App) ExecuteResourceAction(payload actions.ActionPayload) (actions.ActionResult, error) {
+	return a.actionReg.Execute(a.ctx, payload)
+}
+
+func (a *App) TriggerBackgroundRefresh() {
+	go func() {
+		results := a.discoveryMgr.RefreshAll(context.Background())
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "discovery:updated", results)
+		}
+	}()
 }
 
 func (a *App) DiscoverSSHConfig() ([]models.Host, error) {

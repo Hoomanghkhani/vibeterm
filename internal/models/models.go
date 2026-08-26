@@ -102,6 +102,7 @@ type Resource struct {
 	Type         ResourceType         `json:"type"`
 	Name         string               `json:"name"`
 	ParentID     string               `json:"parentId,omitempty"`
+	HostRef      string               `json:"hostRef,omitempty"`
 	Folder       string               `json:"folder,omitempty"`
 	Status       string               `json:"status"` // "running", "stopped", "online", "offline"
 	Capabilities ResourceCapabilities `json:"capabilities"`
@@ -171,17 +172,28 @@ const (
 	ServiceDatabase ServiceType = "database"
 )
 
+type ServiceAccessStrategy string
+
+const (
+	AccessDirectAccess   ServiceAccessStrategy = "direct"
+	AccessSSHTunnel      ServiceAccessStrategy = "ssh_tunnel"
+	AccessSOCKSProxy     ServiceAccessStrategy = "socks_proxy"
+	AccessProviderTunnel ServiceAccessStrategy = "provider_tunnel"
+)
+
 type RemoteService struct {
-	ID         string      `json:"id"`
-	HostID     string      `json:"hostId"`
-	Name       string      `json:"name"` // e.g. "Grafana Dashboard"
-	Type       ServiceType `json:"type"`
-	RemoteHost string      `json:"remoteHost"` // 127.0.0.1
-	RemotePort int         `json:"remotePort"` // 3000
-	LocalPort  int         `json:"localPort,omitempty"`
-	AutoTunnel bool        `json:"autoTunnel"`
-	Path       string      `json:"path,omitempty"` // /d/overview
-	Icon       string      `json:"icon,omitempty"`
+	ID         string                `json:"id"`
+	HostID     string                `json:"hostId,omitempty"`
+	ResourceID string                `json:"resourceId,omitempty"`
+	Name       string                `json:"name"` // e.g. "Grafana Dashboard"
+	Type       ServiceType           `json:"type"`
+	Strategy   ServiceAccessStrategy `json:"strategy,omitempty"`
+	RemoteHost string                `json:"remoteHost"` // 127.0.0.1
+	RemotePort int                   `json:"remotePort"` // 3000
+	LocalPort  int                   `json:"localPort,omitempty"`
+	AutoTunnel bool                  `json:"autoTunnel"`
+	Path       string                `json:"path,omitempty"` // /d/overview
+	Icon       string                `json:"icon,omitempty"`
 }
 
 type PortForwardType string

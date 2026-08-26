@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Server,
     Box,
@@ -18,7 +18,6 @@ import {
     Edit3,
     Trash2,
     Activity,
-    SlidersHorizontal,
     Plus,
     FoldHorizontal,
     Globe,
@@ -27,15 +26,12 @@ import {
 import {
     GetUnifiedInfrastructureTree,
     RefreshDiscovery,
+    TriggerBackgroundRefresh,
+    ExecuteResourceAction,
     SetResourceAlias,
-    ToggleResourceFavorite,
-    DockerStartContainer,
-    DockerStopContainer,
-    DockerRestartContainer,
-    DockerRemoveContainer,
-    DockerGetLogs,
-    LaunchRemoteService
+    ToggleResourceFavorite
 } from '../wailsjs/go/main/App';
+import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
 
 interface InfrastructureNode {
     id: string;
@@ -99,35 +95,55 @@ export const InfrastructureTree: React.FC<InfrastructureTreeProps> = ({
         node?: InfrastructureNode;
     }>({ visible: false, x: 0, y: 0 });
 
-    // Docker Logs Modal
+    // Universal Action Logs Modal
     const [logModal, setLogModal] = useState<{
         visible: boolean;
         title: string;
         logs: string;
-        containerId?: string;
+        node?: InfrastructureNode;
         loading: boolean;
     }>({ visible: false, title: '', logs: '', loading: false });
 
     // Service launch feedback
     const [serviceLaunching, setServiceLaunching] = useState<string | null>(null);
 
-    const fetchTree = async (isRefresh = false) => {
-        setLoading(true);
+    const loadTreeFromCache = async () => {
         try {
-            if (isRefresh) {
-                await RefreshDiscovery();
-            }
             const data = await GetUnifiedInfrastructureTree();
             setTreeData(data || []);
         } catch (err) {
             console.error('Failed to load infrastructure tree:', err);
+        }
+    };
+
+    const handleManualRefresh = async () => {
+        setLoading(true);
+        try {
+            await RefreshDiscovery();
+            const data = await GetUnifiedInfrastructureTree();
+            setTreeData(data || []);
+        } catch (err) {
+            console.error('Manual discovery refresh failed:', err);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchTree(false);
+        // Instant load from cache
+        loadTreeFromCache();
+
+        // Background-first non-blocking refresh
+        TriggerBackgroundRefresh();
+
+        // Listen for background updates
+        EventsOn('discovery:updated', () => {
+            loadTreeFromCache();
+        });
+
+        return () => {
+            EventsOff('discovery:updated');
+        };
     }, []);
 
     // Dismiss context menu on outside click
@@ -142,7 +158,7 @@ export const InfrastructureTree: React.FC<InfrastructureTreeProps> = ({
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'F5') {
                 e.preventDefault();
-                fetchTree(true);
+                handleManualRefresh();
             }
             if (e.key === 'F2' && selectedNodeId) {
                 e.preventDefault();
@@ -193,49 +209,68 @@ export const InfrastructureTree: React.FC<InfrastructureTreeProps> = ({
         }
         await SetResourceAlias(node.resourceId, renameValue.trim());
         setRenamingNodeId(null);
-        fetchTree(false);
+        loadTreeFromCache();
     };
 
     const handleToggleFavorite = async (node: InfrastructureNode) => {
         if (node.resourceId) {
             await ToggleResourceFavorite(node.resourceId);
-            fetchTree(false);
+            loadTreeFromCache();
+        }
+    };
+
+    // Universal Action Registry Dispatcher
+    const handleExecuteAction = async (actionId: string, node: InfrastructureNode, params?: { [key: string]: string }) => {
+        try {
+            const res = await ExecuteResourceAction({
+                actionId,
+                providerId: node.providerId || 'provider-docker',
+                resourceId: node.resourceId || node.id,
+                hostId: node.hostId || '',
+                params: params || {}
+            } as any);
+
+            if (!res.success) {
+                console.error(`Action ${actionId} failed:`, res.error);
+            }
+            loadTreeFromCache();
+            return res;
+        } catch (err) {
+            console.error(`Failed to execute action ${actionId}:`, err);
+            return { success: false, error: String(err) };
         }
     };
 
     const handleOpenLogs = async (node: InfrastructureNode) => {
-        if (!node.resourceId) return;
         setLogModal({
             visible: true,
             title: `Logs: ${node.name}`,
             logs: 'Fetching logs...',
-            containerId: node.resourceId,
+            node,
             loading: true
         });
-        try {
-            const logs = await DockerGetLogs(node.resourceId, 150);
-            setLogModal((prev) => ({ ...prev, logs: logs || 'No logs available.', loading: false }));
-        } catch (err: any) {
-            setLogModal((prev) => ({ ...prev, logs: `Error reading logs: ${err}`, loading: false }));
-        }
+
+        const res = await handleExecuteAction('resource.logs', node, { tail: '150' });
+        setLogModal((prev) => ({
+            ...prev,
+            logs: res?.output || res?.error || 'No logs available.',
+            loading: false
+        }));
     };
 
     const handleLaunchService = async (node: InfrastructureNode) => {
-        if (!node.hostId || !node.serviceId) return;
         setServiceLaunching(node.id);
         try {
-            await LaunchRemoteService(node.hostId, {
-                id: node.serviceId,
-                hostId: node.hostId,
+            await handleExecuteAction('service.launch', node, {
+                serviceId: node.serviceId || node.id,
                 name: node.name,
                 type: 'http',
+                strategy: node.metadata?.strategy || 'ssh_tunnel',
                 remoteHost: node.metadata?.remoteHost || '127.0.0.1',
-                remotePort: parseInt(node.metadata?.remotePort || '80', 10),
-                autoTunnel: true,
+                remotePort: node.metadata?.remotePort || '80',
+                localPort: node.metadata?.localPort || '0',
                 path: node.metadata?.path || ''
-            } as any);
-        } catch (err) {
-            console.error('Failed to launch service:', err);
+            });
         } finally {
             setServiceLaunching(null);
         }
@@ -470,7 +505,7 @@ export const InfrastructureTree: React.FC<InfrastructureTreeProps> = ({
 
                     <div className="flex items-center gap-1 text-textFaint">
                         <button
-                            onClick={() => fetchTree(true)}
+                            onClick={handleManualRefresh}
                             disabled={loading}
                             className={`p-1 hover:text-textMain rounded hover:bg-bgCard transition-colors ${
                                 loading ? 'animate-spin text-zinc-300' : ''
@@ -537,7 +572,7 @@ export const InfrastructureTree: React.FC<InfrastructureTreeProps> = ({
                 )}
             </div>
 
-            {/* Universal Context Menu */}
+            {/* Universal Action-Driven Context Menu */}
             {contextMenu.visible && contextMenu.node && (
                 <div
                     className="fixed z-50 w-52 bg-bgCard border border-borderDark rounded-lg shadow-2xl py-1 text-xs text-textMain overflow-hidden select-none"
@@ -579,55 +614,46 @@ export const InfrastructureTree: React.FC<InfrastructureTreeProps> = ({
                             className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-bgHover hover:text-sky-400 transition-colors"
                         >
                             <FileText size={13} className="text-textFaint" />
-                            <span>View Container Logs</span>
+                            <span>View Logs</span>
                         </button>
                     )}
 
                     {contextMenu.node.capabilities.canStart && (
                         <button
                             onClick={async () => {
-                                if (contextMenu.node?.resourceId) {
-                                    await DockerStartContainer(contextMenu.node.resourceId);
-                                    fetchTree(false);
-                                }
+                                await handleExecuteAction('resource.start', contextMenu.node!);
                                 setContextMenu({ ...contextMenu, visible: false });
                             }}
                             className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-bgHover hover:text-emerald-400 transition-colors"
                         >
                             <Play size={13} className="text-textFaint" />
-                            <span>Start Container</span>
+                            <span>Start Resource</span>
                         </button>
                     )}
 
                     {contextMenu.node.capabilities.canStop && (
                         <button
                             onClick={async () => {
-                                if (contextMenu.node?.resourceId) {
-                                    await DockerStopContainer(contextMenu.node.resourceId);
-                                    fetchTree(false);
-                                }
+                                await handleExecuteAction('resource.stop', contextMenu.node!);
                                 setContextMenu({ ...contextMenu, visible: false });
                             }}
                             className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-bgHover hover:text-amber-400 transition-colors"
                         >
                             <Square size={13} className="text-textFaint" />
-                            <span>Stop Container</span>
+                            <span>Stop Resource</span>
                         </button>
                     )}
 
                     {contextMenu.node.capabilities.canRestart && (
                         <button
                             onClick={async () => {
-                                if (contextMenu.node?.resourceId) {
-                                    await DockerRestartContainer(contextMenu.node.resourceId);
-                                    fetchTree(false);
-                                }
+                                await handleExecuteAction('resource.restart', contextMenu.node!);
                                 setContextMenu({ ...contextMenu, visible: false });
                             }}
                             className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-bgHover hover:text-sky-400 transition-colors"
                         >
                             <RotateCcw size={13} className="text-textFaint" />
-                            <span>Restart Container</span>
+                            <span>Restart Resource</span>
                         </button>
                     )}
 
@@ -661,7 +687,7 @@ export const InfrastructureTree: React.FC<InfrastructureTreeProps> = ({
                 </div>
             )}
 
-            {/* Docker Live Logs Modal */}
+            {/* Universal Action Logs Modal */}
             {logModal.visible && (
                 <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
                     <div className="bg-bgCard border border-borderDark rounded-lg w-[750px] max-w-full h-[500px] flex flex-col shadow-2xl overflow-hidden">
@@ -672,7 +698,7 @@ export const InfrastructureTree: React.FC<InfrastructureTreeProps> = ({
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => handleOpenLogs({ resourceId: logModal.containerId, name: logModal.title } as any)}
+                                    onClick={() => logModal.node && handleOpenLogs(logModal.node)}
                                     className="p-1 hover:text-textMain text-textFaint rounded transition-colors"
                                     title="Refresh Logs"
                                 >

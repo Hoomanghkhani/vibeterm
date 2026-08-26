@@ -1,3 +1,44 @@
+export namespace actions {
+	
+	export class ActionPayload {
+	    actionId: string;
+	    providerId: string;
+	    resourceId: string;
+	    hostId?: string;
+	    params?: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ActionPayload(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.actionId = source["actionId"];
+	        this.providerId = source["providerId"];
+	        this.resourceId = source["resourceId"];
+	        this.hostId = source["hostId"];
+	        this.params = source["params"];
+	    }
+	}
+	export class ActionResult {
+	    success: boolean;
+	    output?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ActionResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.output = source["output"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace diagnostics {
 	
 	export class DiagnosticsResult {
@@ -294,9 +335,11 @@ export namespace models {
 	}
 	export class RemoteService {
 	    id: string;
-	    hostId: string;
+	    hostId?: string;
+	    resourceId?: string;
 	    name: string;
 	    type: string;
+	    strategy?: string;
 	    remoteHost: string;
 	    remotePort: number;
 	    localPort?: number;
@@ -312,8 +355,10 @@ export namespace models {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.hostId = source["hostId"];
+	        this.resourceId = source["resourceId"];
 	        this.name = source["name"];
 	        this.type = source["type"];
+	        this.strategy = source["strategy"];
 	        this.remoteHost = source["remoteHost"];
 	        this.remotePort = source["remotePort"];
 	        this.localPort = source["localPort"];
@@ -593,6 +638,7 @@ export namespace models {
 	    type: string;
 	    name: string;
 	    parentId?: string;
+	    hostRef?: string;
 	    folder?: string;
 	    status: string;
 	    capabilities: ResourceCapabilities;
@@ -612,6 +658,7 @@ export namespace models {
 	        this.type = source["type"];
 	        this.name = source["name"];
 	        this.parentId = source["parentId"];
+	        this.hostRef = source["hostRef"];
 	        this.folder = source["folder"];
 	        this.status = source["status"];
 	        this.capabilities = this.convertValues(source["capabilities"], ResourceCapabilities);

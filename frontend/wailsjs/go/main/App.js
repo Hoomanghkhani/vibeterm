@@ -58,6 +58,10 @@ export function DockerStopContainer(arg1) {
   return window['go']['main']['App']['DockerStopContainer'](arg1);
 }
 
+export function ExecuteResourceAction(arg1) {
+  return window['go']['main']['App']['ExecuteResourceAction'](arg1);
+}
+
 export function GetActiveRemoteServices() {
   return window['go']['main']['App']['GetActiveRemoteServices']();
 }
@@ -200,6 +204,10 @@ export function TogglePlugin(arg1, arg2) {
 
 export function ToggleResourceFavorite(arg1) {
   return window['go']['main']['App']['ToggleResourceFavorite'](arg1);
+}
+
+export function TriggerBackgroundRefresh() {
+  return window['go']['main']['App']['TriggerBackgroundRefresh']();
 }
 
 export function UploadRemoteFile(arg1, arg2, arg3) {

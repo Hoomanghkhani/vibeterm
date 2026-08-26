@@ -158,13 +158,19 @@ func (dm *DiscoveryManager) GetUnifiedTree(ctx context.Context) []models.Infrast
 				displayName = alias
 			}
 
+			// ONLY set HostID when resource is actually a Host or has a HostRef
+			hostID := res.HostRef
+			if res.Type == models.ResourceServer {
+				hostID = res.ID
+			}
+
 			resNode := models.InfrastructureNode{
 				ID:           fmt.Sprintf("res-%s", res.ID),
 				ParentID:     provNode.ID,
 				NodeType:     models.NodeResource,
 				ProviderID:   res.ProviderID,
 				ResourceID:   res.ID,
-				HostID:       res.ID,
+				HostID:       hostID,
 				Name:         displayName,
 				Alias:        alias,
 				Status:       res.Status,
@@ -213,6 +219,7 @@ func (dm *DiscoveryManager) GetUnifiedTree(ctx context.Context) []models.Infrast
 						"remotePort": fmt.Sprintf("%d", svc.RemotePort),
 						"localPort":  fmt.Sprintf("%d", svc.LocalPort),
 						"path":       svc.Path,
+						"strategy":   string(svc.Strategy),
 					},
 				})
 			}
