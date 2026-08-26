@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Server, Plus, Search, Terminal, Edit3, Trash2, Shield, ArrowUpRight, CheckCircle2, AlertCircle, HardDrive, Tag } from 'lucide-react';
+import { Server, Plus, Search, Terminal, Edit3, Trash2, Shield, ArrowUpRight } from 'lucide-react';
 
 interface HostManagerViewProps {
     hosts: any[];
@@ -9,16 +9,29 @@ interface HostManagerViewProps {
     onNew: () => void;
 }
 
-export const HostManagerView: React.FC<HostManagerViewProps> = ({ hosts, onConnect, onEdit, onDelete, onNew }) => {
+export const HostManagerView: React.FC<HostManagerViewProps> = ({ hosts = [], onConnect, onEdit, onDelete, onNew }) => {
     const [search, setSearch] = useState('');
     const [selectedEnv, setSelectedEnv] = useState<string>('all');
 
-    const filteredHosts = hosts.filter((h) => {
-        const matchesSearch = 
-            h.Name.toLowerCase().includes(search.toLowerCase()) ||
-            h.Hostname.toLowerCase().includes(search.toLowerCase()) ||
-            h.Username.toLowerCase().includes(search.toLowerCase());
-        const matchesEnv = selectedEnv === 'all' || h.Environment === selectedEnv;
+    const getHostName = (h: any) => h?.name || h?.Name || 'Unnamed Server';
+    const getHostIp = (h: any) => h?.hostname || h?.Hostname || '127.0.0.1';
+    const getHostUser = (h: any) => h?.username || h?.Username || 'root';
+    const getHostPort = (h: any) => h?.port || h?.Port || 22;
+    const getHostEnv = (h: any) => h?.environment || h?.Environment || 'production';
+    const getHostTags = (h: any) => h?.tags || h?.Tags || [];
+    const getHostNotes = (h: any) => h?.notes || h?.Notes || '';
+    const getHostId = (h: any) => h?.id || h?.ID || '';
+
+    const filteredHosts = (hosts || []).filter((h) => {
+        if (!h) return false;
+        const name = getHostName(h).toLowerCase();
+        const hostname = getHostIp(h).toLowerCase();
+        const username = getHostUser(h).toLowerCase();
+        const env = getHostEnv(h);
+        const q = search.toLowerCase();
+
+        const matchesSearch = name.includes(q) || hostname.includes(q) || username.includes(q);
+        const matchesEnv = selectedEnv === 'all' || env === selectedEnv;
         return matchesSearch && matchesEnv;
     });
 
@@ -61,86 +74,105 @@ export const HostManagerView: React.FC<HostManagerViewProps> = ({ hosts, onConne
                 </button>
             </div>
 
-            {/* Server Grid / Table */}
+            {/* Server Grid */}
             <div className="flex-1 overflow-y-auto p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredHosts.map((host) => (
-                        <div 
-                            key={host.ID}
-                            className="bg-bgCard border border-borderDark rounded-xl p-4 flex flex-col justify-between hover:border-borderActive hover:bg-bgPanel/50 transition-all duration-200 shadow-card group"
-                        >
-                            <div>
-                                <div className="flex items-start justify-between mb-2">
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className="w-8 h-8 rounded-lg bg-bgMain border border-borderDark flex items-center justify-center text-textMain shrink-0">
-                                            <Server size={16} strokeWidth={1.5} />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h3 className="text-xs font-semibold text-textMain truncate">{host.Name}</h3>
-                                            <span className="text-[11px] text-textFaint font-mono block truncate">{host.Username}@{host.Hostname}:{host.Port}</span>
-                                        </div>
-                                    </div>
+                {filteredHosts.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 text-textMuted">
+                        <Server size={36} className="text-textFaint mb-3 opacity-60" />
+                        <h3 className="text-sm font-semibold text-textMain">No Endpoints Found</h3>
+                        <p className="text-xs text-textFaint max-w-sm mt-1">No servers match your current search or environment filter.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredHosts.map((host, idx) => {
+                            const id = getHostId(host) || `host-${idx}`;
+                            const name = getHostName(host);
+                            const ip = getHostIp(host);
+                            const user = getHostUser(host);
+                            const port = getHostPort(host);
+                            const env = getHostEnv(host);
+                            const tags = getHostTags(host);
+                            const notes = getHostNotes(host);
 
-                                    <span className={`text-[10px] px-2 py-0.5 rounded font-mono uppercase font-semibold tracking-wider ${
-                                        host.Environment === 'production' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                                        host.Environment === 'staging' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                        'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                    }`}>
-                                        {host.Environment || 'prod'}
-                                    </span>
-                                </div>
+                            return (
+                                <div 
+                                    key={id}
+                                    className="bg-bgCard border border-borderDark rounded-xl p-4 flex flex-col justify-between hover:border-borderActive hover:bg-bgPanel/50 transition-all duration-200 shadow-card"
+                                >
+                                    <div>
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="w-8 h-8 rounded-lg bg-bgMain border border-borderDark flex items-center justify-center text-textMain shrink-0">
+                                                    <Server size={16} strokeWidth={1.5} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-xs font-semibold text-textMain truncate">{name}</h3>
+                                                    <span className="text-[11px] text-textFaint font-mono block truncate">{user}@{ip}:{port}</span>
+                                                </div>
+                                            </div>
 
-                                {host.Tags && host.Tags.length > 0 && (
-                                    <div className="flex items-center gap-1.5 flex-wrap my-3">
-                                        {host.Tags.map((tag: string, i: number) => (
-                                            <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-bgMain border border-borderDark text-textMuted font-mono">
-                                                #{tag}
+                                            <span className={`text-[10px] px-2 py-0.5 rounded font-mono uppercase font-semibold tracking-wider ${
+                                                env === 'production' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                                                env === 'staging' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                                                'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                            }`}>
+                                                {env}
                                             </span>
-                                        ))}
+                                        </div>
+
+                                        {Array.isArray(tags) && tags.length > 0 && (
+                                            <div className="flex items-center gap-1.5 flex-wrap my-3">
+                                                {tags.map((tag: string, i: number) => (
+                                                    <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-bgMain border border-borderDark text-textMuted font-mono">
+                                                        #{tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {notes && (
+                                            <p className="text-[11px] text-textFaint line-clamp-2 my-2 italic">
+                                                "{notes}"
+                                            </p>
+                                        )}
                                     </div>
-                                )}
 
-                                {host.Notes && (
-                                    <p className="text-[11px] text-textFaint line-clamp-2 my-2 italic">
-                                        "{host.Notes}"
-                                    </p>
-                                )}
-                            </div>
+                                    {/* Card Footer Actions */}
+                                    <div className="pt-3 border-t border-borderDark flex items-center justify-between mt-2">
+                                        <div className="flex items-center gap-1.5 text-[11px] text-textFaint">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                            <span>SSH Protocol</span>
+                                        </div>
 
-                            {/* Card Footer Actions */}
-                            <div className="pt-3 border-t border-borderDark flex items-center justify-between mt-2">
-                                <div className="flex items-center gap-1.5 text-[11px] text-textFaint">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                                    <span>SSH Protocol</span>
+                                        <div className="flex items-center gap-1">
+                                            <button 
+                                                onClick={() => onEdit(host)} 
+                                                className="p-1.5 rounded hover:bg-bgMain text-textFaint hover:text-textMain transition-colors"
+                                                title="Edit Server"
+                                            >
+                                                <Edit3 size={13} />
+                                            </button>
+                                            <button 
+                                                onClick={() => onDelete(id)} 
+                                                className="p-1.5 rounded hover:bg-bgMain text-textFaint hover:text-rose-400 transition-colors"
+                                                title="Delete Server"
+                                            >
+                                                <Trash2 size={13} />
+                                            </button>
+                                            <button 
+                                                onClick={() => onConnect(host)}
+                                                className="px-2.5 py-1 rounded bg-bgMain border border-borderDark hover:border-borderActive text-textMain text-xs font-medium flex items-center gap-1 ml-1 transition-colors"
+                                            >
+                                                <Terminal size={12} />
+                                                <span>Connect</span>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-
-                                <div className="flex items-center gap-1">
-                                    <button 
-                                        onClick={() => onEdit(host)} 
-                                        className="p-1.5 rounded hover:bg-bgMain text-textFaint hover:text-textMain transition-colors"
-                                        title="Edit Server"
-                                    >
-                                        <Edit3 size={13} />
-                                    </button>
-                                    <button 
-                                        onClick={() => onDelete(host.ID)} 
-                                        className="p-1.5 rounded hover:bg-bgMain text-textFaint hover:text-rose-400 transition-colors"
-                                        title="Delete Server"
-                                    >
-                                        <Trash2 size={13} />
-                                    </button>
-                                    <button 
-                                        onClick={() => onConnect(host)}
-                                        className="px-2.5 py-1 rounded bg-bgMain border border-borderDark hover:border-borderActive text-textMain text-xs font-medium flex items-center gap-1 ml-1 transition-colors"
-                                    >
-                                        <Terminal size={12} />
-                                        <span>Connect</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );

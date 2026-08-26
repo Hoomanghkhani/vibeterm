@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
+	"path"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -55,6 +55,13 @@ func (m *SFTPManager) ListDirectory(ctx context.Context, host models.Host, remot
 		remotePath = "."
 	}
 
+	// Resolve absolute path or pwd
+	if remotePath == "." {
+		if pwd, err := sftpClient.Getwd(); err == nil && pwd != "" {
+			remotePath = pwd
+		}
+	}
+
 	files, err := sftpClient.ReadDir(remotePath)
 	if err != nil {
 		return nil, err
@@ -64,7 +71,7 @@ func (m *SFTPManager) ListDirectory(ctx context.Context, host models.Host, remot
 	for _, f := range files {
 		results = append(results, RemoteFileInfo{
 			Name:    f.Name(),
-			Path:    filepath.Join(remotePath, f.Name()),
+			Path:    path.Join(remotePath, f.Name()),
 			Size:    f.Size(),
 			Mode:    f.Mode().String(),
 			IsDir:   f.IsDir(),
@@ -72,6 +79,107 @@ func (m *SFTPManager) ListDirectory(ctx context.Context, host models.Host, remot
 		})
 	}
 	return results, nil
+}
+
+// UploadData writes byte content directly to a remote destination (for web drag & drop)
+func (m *SFTPManager) UploadData(ctx context.Context, host models.Host, remotePath string, data []byte) error {
+	cm := GetClientManager()
+	client, err := cm.DialHost(ctx, host)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftpClient.Close()
+
+	dstFile, err := sftpClient.Create(remotePath)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	_, err = dstFile.Write(data)
+	return err
+}
+
+// ReadFileContent reads remote text file content
+func (m *SFTPManager) ReadFileContent(ctx context.Context, host models.Host, remotePath string, maxBytes int64) (string, error) {
+	cm := GetClientManager()
+	client, err := cm.DialHost(ctx, host)
+	if err != nil {
+		return "", err
+	}
+	defer client.Close()
+
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		return "", err
+	}
+	defer sftpClient.Close()
+
+	srcFile, err := sftpClient.Open(remotePath)
+	if err != nil {
+		return "", err
+	}
+	defer srcFile.Close()
+
+	if maxBytes <= 0 {
+		maxBytes = 512 * 1024 // 512KB limit for preview
+	}
+
+	buf := make([]byte, maxBytes)
+	n, err := srcFile.Read(buf)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	return string(buf[:n]), nil
+}
+
+// DeleteRemoteFile deletes a remote file or folder
+func (m *SFTPManager) DeleteRemoteFile(ctx context.Context, host models.Host, remotePath string) error {
+	cm := GetClientManager()
+	client, err := cm.DialHost(ctx, host)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftpClient.Close()
+
+	stat, err := sftpClient.Stat(remotePath)
+	if err != nil {
+		return err
+	}
+	if stat.IsDir() {
+		return sftpClient.RemoveDirectory(remotePath)
+	}
+	return sftpClient.Remove(remotePath)
+}
+
+// CreateRemoteDir creates a new directory
+func (m *SFTPManager) CreateRemoteDir(ctx context.Context, host models.Host, remotePath string) error {
+	cm := GetClientManager()
+	client, err := cm.DialHost(ctx, host)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	sftpClient, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftpClient.Close()
+
+	return sftpClient.MkdirAll(remotePath)
 }
 
 // DownloadFile transfers a remote file to a local destination

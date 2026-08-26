@@ -376,3 +376,64 @@ func (cm *ConfigManager) DecryptSecret(encryptedBase64 string) (string, error) {
 	}
 	return string(plainText), nil
 }
+
+// GetSnippets returns all configured snippets
+func (cm *ConfigManager) GetSnippets() []models.Snippet {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	snippets := make([]models.Snippet, len(cm.config.Snippets))
+	copy(snippets, cm.config.Snippets)
+	return snippets
+}
+
+// SaveSnippet adds or updates a snippet
+func (cm *ConfigManager) SaveSnippet(snippet models.Snippet) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	found := false
+	for i, s := range cm.config.Snippets {
+		if s.ID == snippet.ID {
+			cm.config.Snippets[i] = snippet
+			found = true
+			break
+		}
+	}
+	if !found {
+		if snippet.ID == "" {
+			snippet.ID = "snippet-" + time.Now().Format("20060102150405")
+		}
+		cm.config.Snippets = append(cm.config.Snippets, snippet)
+	}
+	return cm.saveLocked()
+}
+
+// DeleteSnippet removes a snippet by ID
+func (cm *ConfigManager) DeleteSnippet(id string) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+
+	for i, s := range cm.config.Snippets {
+		if s.ID == id {
+			cm.config.Snippets = append(cm.config.Snippets, cm.config.Snippets[i+1:]...)
+			return cm.saveLocked()
+		}
+	}
+	return nil
+}
+
+// GetGitOpsConfig returns the GitOps synchronization settings
+func (cm *ConfigManager) GetGitOpsConfig() models.GitOpsConfig {
+	cm.mu.RLock()
+	defer cm.mu.RUnlock()
+	return cm.config.GitOps
+}
+
+// SaveGitOpsConfig saves the GitOps settings
+func (cm *ConfigManager) SaveGitOpsConfig(cfg models.GitOpsConfig) error {
+	cm.mu.Lock()
+	defer cm.mu.Unlock()
+	cm.config.GitOps = cfg
+	return cm.saveLocked()
+}
+

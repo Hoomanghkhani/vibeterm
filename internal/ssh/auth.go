@@ -144,12 +144,12 @@ func getSSHAgentAuth() ([]ssh.AuthMethod, error) {
 	return []ssh.AuthMethod{ssh.PublicKeysCallback(agentClient.Signers)}, nil
 }
 
-// CreateClientConfig creates standard ssh.ClientConfig with security timeouts
+// CreateClientConfig creates standard ssh.ClientConfig with security timeouts and host key verification
 func CreateClientConfig(username string, authMethods []ssh.AuthMethod) *ssh.ClientConfig {
 	return &ssh.ClientConfig{
 		User:            username,
 		Auth:            authMethods,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // In production, known_hosts verifier
+		HostKeyCallback: GetKnownHostsManager().HostKeyCallback(),
 		Timeout:         10 * time.Second,
 	}
 }

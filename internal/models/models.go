@@ -2,7 +2,8 @@ package models
 
 import "time"
 
-// ProtocolType defines the communication protocol
+// ==================== PROTOCOL & CREDENTIAL TYPES ====================
+
 type ProtocolType string
 
 const (
@@ -16,7 +17,6 @@ const (
 	ProtocolLocal  ProtocolType = "local"
 )
 
-// AuthMethod defines the SSH authentication method
 type AuthMethod string
 
 const (
@@ -26,6 +26,22 @@ const (
 	AuthCertificate AuthMethod = "certificate"
 	AuthHardwareKey AuthMethod = "hardware_key" // FIDO2 / YubiKey
 )
+
+// Credential represents a standalone reusable identity in the vault
+type Credential struct {
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Type            AuthMethod `json:"type"`
+	Username        string     `json:"username"`
+	Password        string     `json:"password,omitempty"`
+	PrivateKeyPath  string     `json:"privateKeyPath,omitempty"`
+	PrivateKeyData  string     `json:"privateKeyData,omitempty"`
+	KeyPassphrase   string     `json:"keyPassphrase,omitempty"`
+	CertPath        string     `json:"certPath,omitempty"`
+	HardwareKeySlot string     `json:"hardwareKeySlot,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
+}
 
 // JumpHostHop represents an intermediate hop in a bastion chain
 type JumpHostHop struct {
@@ -42,7 +58,64 @@ type JumpHostHop struct {
 	HardwareKeySlot string     `json:"hardwareKeySlot,omitempty"`
 }
 
-// PortForwardType defines tunneling direction
+// ==================== PROVIDER & RESOURCE ====================
+
+type ProviderType string
+
+const (
+	ProviderSSH        ProviderType = "ssh"
+	ProviderDocker     ProviderType = "docker"
+	ProviderKubernetes ProviderType = "kubernetes"
+	ProviderLocal      ProviderType = "local"
+	ProviderSerial     ProviderType = "serial"
+	ProviderCustom     ProviderType = "custom"
+)
+
+type ResourceType string
+
+const (
+	ResourceServer    ResourceType = "server"
+	ResourceContainer ResourceType = "container"
+	ResourcePod       ResourceType = "pod"
+	ResourceCluster   ResourceType = "cluster"
+	ResourceService   ResourceType = "service"
+	ResourceDevice    ResourceType = "device"
+)
+
+type Resource struct {
+	ID         string            `json:"id"`
+	ProviderID string            `json:"providerId"`
+	Type       ResourceType      `json:"type"`
+	Name       string            `json:"name"`
+	ParentID   string            `json:"parentId,omitempty"`
+	Status     string            `json:"status"` // "running", "stopped", "online", "offline"
+	Metadata   map[string]string `json:"metadata,omitempty"`
+}
+
+// ==================== REMOTE SERVICES & TUNNELS ====================
+
+type ServiceType string
+
+const (
+	ServiceHTTP     ServiceType = "http"
+	ServiceHTTPS    ServiceType = "https"
+	ServiceTCP      ServiceType = "tcp"
+	ServiceDatabase ServiceType = "database"
+)
+
+type RemoteService struct {
+	ID         string      `json:"id"`
+	HostID     string      `json:"hostId"`
+	Name       string      `json:"name"` // e.g. "Grafana Dashboard"
+	Type       ServiceType `json:"type"`
+	RemoteHost string      `json:"remoteHost"` // 127.0.0.1
+	RemotePort int         `json:"remotePort"` // 3000
+	LocalPort  int         `json:"localPort,omitempty"`
+	AutoTunnel bool        `json:"autoTunnel"`
+	Path       string      `json:"path,omitempty"` // /d/overview
+	Icon       string      `json:"icon,omitempty"`
+}
+
 type PortForwardType string
 
 const (
@@ -51,7 +124,6 @@ const (
 	ForwardDynamic PortForwardType = "dynamic" // -D Local SOCKS5 Proxy
 )
 
-// PortForwardRule represents an active or configured port forward
 type PortForwardRule struct {
 	ID            string          `json:"id"`
 	HostID        string          `json:"hostId"`
@@ -69,7 +141,8 @@ type PortForwardRule struct {
 	ErrorMessage  string          `json:"errorMessage,omitempty"`
 }
 
-// HealthStatus represents real-time latency and connectivity state
+// ==================== HOST & CONNECTION ====================
+
 type HealthStatus string
 
 const (
@@ -79,7 +152,31 @@ const (
 	HealthUnknown  HealthStatus = "unknown"
 )
 
-// Host represents a managed infrastructure node
+type ConnectionType string
+
+const (
+	ConnSSH    ConnectionType = "ssh"
+	ConnSFTP   ConnectionType = "sftp"
+	ConnLocal  ConnectionType = "local"
+	ConnDocker ConnectionType = "docker_exec"
+	ConnK8s    ConnectionType = "k8s_exec"
+	ConnSerial ConnectionType = "serial"
+	ConnTelnet ConnectionType = "telnet"
+	ConnRDP    ConnectionType = "rdp"
+	ConnVNC    ConnectionType = "vnc"
+)
+
+type Connection struct {
+	ID           string            `json:"id"`
+	HostID       string            `json:"hostId"`
+	Name         string            `json:"name"`
+	Type         ConnectionType    `json:"type"`
+	CredentialID string            `json:"credentialId,omitempty"`
+	Port         int               `json:"port"`
+	Target       string            `json:"target,omitempty"`
+	Params       map[string]string `json:"params,omitempty"`
+}
+
 type Host struct {
 	ID             string            `json:"id"`
 	Name           string            `json:"name"`
@@ -87,6 +184,7 @@ type Host struct {
 	Port           int               `json:"port"`
 	Protocol       ProtocolType      `json:"protocol"`
 	Username       string            `json:"username"`
+	CredentialID   string            `json:"credentialId,omitempty"`
 	AuthMethod     AuthMethod        `json:"authMethod"`
 	Password       string            `json:"password,omitempty"`
 	PrivateKeyPath string            `json:"privateKeyPath,omitempty"`
@@ -95,10 +193,12 @@ type Host struct {
 	CertPath       string            `json:"certPath,omitempty"`
 	JumpChain      []JumpHostHop     `json:"jumpChain,omitempty"`
 	Environment    string            `json:"environment"` // "production", "staging", "dev", "edge"
-	Folder         string            `json:"folder"`      // Hierarchy grouping
+	Folder         string            `json:"folder"`      // Hierarchy grouping e.g. "AWS/Production"
 	Tags           []string          `json:"tags"`
-	Color          string            `json:"color"`
-	X11Forwarding  bool              `json:"x11Forwarding"`
+	Color          string            `json:"color,omitempty"`
+	X11Forwarding  bool              `json:"x11Forwarding,omitempty"`
+	Connections    []Connection      `json:"connections,omitempty"`
+	Services       []RemoteService   `json:"services,omitempty"`
 	Forwardings    []PortForwardRule `json:"forwardings,omitempty"`
 	AutoCommands   []string          `json:"autoCommands,omitempty"`
 	SnippetIDs     []string          `json:"snippetIds,omitempty"`
@@ -112,75 +212,69 @@ type Host struct {
 	UpdatedAt      time.Time         `json:"updatedAt"`
 }
 
-// TerminalSession represents an active PTY session (SSH, Local, or Container)
-type TerminalSession struct {
+// ==================== SESSION & STATE MACHINE ====================
+
+type SessionState string
+
+const (
+	SessionConnecting   SessionState = "connecting"
+	SessionConnected    SessionState = "connected"
+	SessionDegraded     SessionState = "degraded"
+	SessionDisconnected SessionState = "disconnected"
+	SessionReconnecting SessionState = "reconnecting"
+	SessionFailed       SessionState = "failed"
+)
+
+type Session struct {
 	ID           string       `json:"id"`
 	HostID       string       `json:"hostId"`
+	ConnectionID string       `json:"connectionId,omitempty"`
 	Title        string       `json:"title"`
-	Protocol     ProtocolType `json:"protocol"`
+	State        SessionState `json:"state"`
 	Cols         int          `json:"cols"`
 	Rows         int          `json:"rows"`
 	CreatedAt    time.Time    `json:"createdAt"`
-	IsRecording  bool         `json:"isRecording"`
-	RecordingID  string       `json:"recordingId,omitempty"`
-	X11Active    bool         `json:"x11Active"`
-	ActiveTunnel int          `json:"activeTunnelCount"`
+	LastActiveAt time.Time    `json:"lastActiveAt"`
+	ErrorMessage string       `json:"errorMessage,omitempty"`
 }
 
-// DiscoveredDevice is the result of a network subnet scan
+// ==================== SSH SECURITY & KNOWN HOSTS ====================
+
+type KnownHostRecord struct {
+	Hostname    string    `json:"hostname"`
+	Port        int       `json:"port"`
+	KeyType     string    `json:"keyType"`
+	Fingerprint string    `json:"fingerprint"` // SHA256:...
+	HostKeyRaw  string    `json:"hostKeyRaw"`
+	FirstSeen   time.Time `json:"firstSeen"`
+	LastSeen    time.Time `json:"lastSeen"`
+	Trusted     bool      `json:"trusted"`
+}
+
+// ==================== WORKSPACES & DISCOVERY ====================
+
+type WorkspaceLayout struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	OpenTabs    []string          `json:"openTabs"`
+	ActiveTabID string            `json:"activeTabId"`
+	SplitPanes  map[string]any    `json:"splitPanes,omitempty"`
+	Environment map[string]string `json:"environment,omitempty"`
+	CreatedAt   time.Time         `json:"createdAt"`
+	UpdatedAt   time.Time         `json:"updatedAt"`
+}
+
 type DiscoveredDevice struct {
 	IP           string   `json:"ip"`
 	Hostname     string   `json:"hostname,omitempty"`
 	OpenPorts    []int    `json:"openPorts"`
-	Services     []string `json:"services"` // e.g. "SSH-2.0-OpenSSH_9.2p1", "RDP", "VNC"
+	Services     []string `json:"services"`
 	LatencyMs    float64  `json:"latencyMs"`
 	Vendor       string   `json:"vendor,omitempty"`
 	MatchedProto string   `json:"matchedProto,omitempty"`
 }
 
-// AIChatMessage represents a message exchanged with the AI Copilot
-type AIChatMessage struct {
-	Role      string    `json:"role"` // "system", "user", "assistant"
-	Content   string    `json:"content"`
-	Timestamp time.Time `json:"timestamp"`
-	Command   string    `json:"command,omitempty"`
-	Reasoning string    `json:"reasoning,omitempty"`
-}
-
-// AIProviderConfig contains configuration for an AI model provider
-type AIProviderConfig struct {
-	Provider string `json:"provider"` // "openai", "anthropic", "gemini", "ollama"
-	APIKey   string `json:"apiKey,omitempty"`
-	BaseURL  string `json:"baseUrl,omitempty"`
-	Model    string `json:"model"`
-	Enabled  bool   `json:"enabled"`
-}
-
-// GitOpsConfig holds git synchronization settings
-type GitOpsConfig struct {
-	RepoURL       string    `json:"repoUrl"`
-	Branch        string    `json:"branch"`
-	AuthType      string    `json:"authType"` // "ssh", "token"
-	SSHKeyPath    string    `json:"sshKeyPath,omitempty"`
-	AccessToken   string    `json:"accessToken,omitempty"`
-	AutoSync      bool      `json:"autoSync"`
-	EncryptSecret bool      `json:"encryptSecret"`
-	EncryptionKey string    `json:"encryptionKey,omitempty"`
-	LastSynced    time.Time `json:"lastSynced"`
-}
-
-// TriggerRule executes automated actions on terminal stream match
-type TriggerRule struct {
-	ID      string `json:"id"`
-	HostID  string `json:"hostId,omitempty"` // empty for global
-	Pattern string `json:"pattern"`
-	IsRegex bool   `json:"isRegex"`
-	Action  string `json:"action"` // "send_text", "sudo_elevate", "highlight", "notify"
-	Payload string `json:"payload"`
-	Enabled bool   `json:"enabled"`
-}
-
-// Snippet represents a reusable multi-command automation snippet
 type Snippet struct {
 	ID          string            `json:"id"`
 	Title       string            `json:"title"`
@@ -189,3 +283,42 @@ type Snippet struct {
 	Tags        []string          `json:"tags"`
 	Variables   map[string]string `json:"variables,omitempty"`
 }
+
+type GitOpsConfig struct {
+	RepoURL       string    `json:"repoUrl"`
+	Branch        string    `json:"branch"`
+	AuthType      string    `json:"authType"`
+	SSHKeyPath    string    `json:"sshKeyPath,omitempty"`
+	AccessToken   string    `json:"accessToken,omitempty"`
+	AutoSync      bool      `json:"autoSync"`
+	EncryptSecret bool      `json:"encryptSecret"`
+	EncryptionKey string    `json:"encryptionKey,omitempty"`
+	LastSynced    time.Time `json:"lastSynced"`
+}
+
+type TriggerRule struct {
+	ID      string `json:"id"`
+	HostID  string `json:"hostId,omitempty"`
+	Pattern string `json:"pattern"`
+	IsRegex bool   `json:"isRegex"`
+	Action  string `json:"action"`
+	Payload string `json:"payload"`
+	Enabled bool   `json:"enabled"`
+}
+
+type AIProviderConfig struct {
+	Provider string `json:"provider"`
+	APIKey   string `json:"apiKey,omitempty"`
+	BaseURL  string `json:"baseUrl,omitempty"`
+	Model    string `json:"model"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type AIChatMessage struct {
+	Role      string    `json:"role"`
+	Content   string    `json:"content"`
+	Timestamp time.Time `json:"timestamp"`
+	Command   string    `json:"command,omitempty"`
+	Reasoning string    `json:"reasoning,omitempty"`
+}
+

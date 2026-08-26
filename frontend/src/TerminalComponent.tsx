@@ -73,17 +73,17 @@ export const TerminalComponent: React.FC<TerminalProps> = ({ sessionType, hostID
 
                 if (sessionType === 'local') {
                     sid = await StartLocalTerminal(cols, rows);
-                    EventsOn('terminal:output', (data: string) => {
-                        term.write(data);
-                    });
                 } else if (sessionType === 'ssh' && hostID) {
                     sid = await StartSSHTerminal(hostID, cols, rows);
-                    EventsOn(`terminal:output:${hostID}`, (data: string) => {
-                        term.write(data);
-                    });
                 }
 
                 sessionIDRef.current = sid;
+
+                if (sid) {
+                    EventsOn(`terminal:output:${sid}`, (data: string) => {
+                        term.write(data);
+                    });
+                }
 
                 // Handle keyboard input
                 term.onData((data) => {
@@ -94,14 +94,33 @@ export const TerminalComponent: React.FC<TerminalProps> = ({ sessionType, hostID
 
                 // Handle resize
                 const handleResize = () => {
-                    fitAddon.fit();
-                    if (sessionIDRef.current) {
-                        ResizeTerminal(sessionIDRef.current, term.cols, term.rows);
+                    try {
+                        fitAddon.fit();
+                        if (sessionIDRef.current) {
+                            ResizeTerminal(sessionIDRef.current, term.cols, term.rows);
+                        }
+                    } catch (e) {
+                        // ignore if element is not rendered
                     }
                 };
 
                 window.addEventListener('resize', handleResize);
-                return handleResize;
+
+                // ResizeObserver on terminal DOM element
+                let resizeObserver: ResizeObserver | null = null;
+                if (terminalRef.current && window.ResizeObserver) {
+                    resizeObserver = new ResizeObserver(() => {
+                        handleResize();
+                    });
+                    resizeObserver.observe(terminalRef.current);
+                }
+
+                return () => {
+                    window.removeEventListener('resize', handleResize);
+                    if (resizeObserver) {
+                        resizeObserver.disconnect();
+                    }
+                };
             } catch (err: any) {
                 term.writeln(`\r\n\x1b[31m[Error starting session]: ${err}\x1b[0m\r\n`);
             }
@@ -129,21 +148,17 @@ export const TerminalComponent: React.FC<TerminalProps> = ({ sessionType, hostID
         window.addEventListener('click', handleGlobalClick);
 
         return () => {
-            cleanupPromise.then((handleResize) => {
-                if (handleResize) {
-                    window.removeEventListener('resize', handleResize);
+            cleanupPromise.then((cleanupResize) => {
+                if (cleanupResize) {
+                    cleanupResize();
                 }
             });
             window.removeEventListener('click', handleGlobalClick);
             if (currentTermElement) {
                 currentTermElement.removeEventListener('contextmenu', handleContextMenu);
             }
-            if (sessionType === 'local') {
-                EventsOff('terminal:output');
-            } else if (hostID) {
-                EventsOff(`terminal:output:${hostID}`);
-            }
             if (sessionIDRef.current) {
+                EventsOff(`terminal:output:${sessionIDRef.current}`);
                 CloseTerminal(sessionIDRef.current);
             }
             term.dispose();
