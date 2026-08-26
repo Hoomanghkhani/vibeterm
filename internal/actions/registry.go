@@ -11,20 +11,6 @@ import (
 	"vibeterm/internal/services"
 )
 
-type ActionPayload struct {
-	ActionID   string            `json:"actionId"` // e.g. "resource.start", "resource.stop", "resource.restart", "resource.logs", "resource.delete", "service.launch"
-	ProviderID string            `json:"providerId"`
-	ResourceID string            `json:"resourceId"`
-	HostID     string            `json:"hostId,omitempty"`
-	Params     map[string]string `json:"params,omitempty"`
-}
-
-type ActionResult struct {
-	Success bool   `json:"success"`
-	Output  string `json:"output,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
-
 type ActionRegistry struct {
 	mu sync.RWMutex
 }
@@ -42,7 +28,7 @@ func GetActionRegistry() *ActionRegistry {
 }
 
 // Execute dispatches the action to the corresponding provider or subsystem
-func (ar *ActionRegistry) Execute(ctx context.Context, payload ActionPayload) (ActionResult, error) {
+func (ar *ActionRegistry) Execute(ctx context.Context, payload models.ActionPayload) (models.ActionResult, error) {
 	provReg := providers.GetRegistry()
 	prov, ok := provReg.Get(payload.ProviderID)
 	if !ok {
@@ -50,7 +36,7 @@ func (ar *ActionRegistry) Execute(ctx context.Context, payload ActionPayload) (A
 		if payload.ActionID == "service.launch" {
 			return ar.executeServiceLaunch(ctx, payload)
 		}
-		return ActionResult{Success: false, Error: fmt.Sprintf("provider %s not found", payload.ProviderID)}, nil
+		return models.ActionResult{Success: false, Error: fmt.Sprintf("provider %s not found", payload.ProviderID)}, nil
 	}
 
 	switch payload.ActionID {
@@ -58,36 +44,36 @@ func (ar *ActionRegistry) Execute(ctx context.Context, payload ActionPayload) (A
 		if dp, ok := prov.(*providers.DockerProvider); ok {
 			err := dp.StartContainer(ctx, payload.ResourceID)
 			if err != nil {
-				return ActionResult{Success: false, Error: err.Error()}, nil
+				return models.ActionResult{Success: false, Error: err.Error()}, nil
 			}
-			return ActionResult{Success: true, Output: "Started container successfully"}, nil
+			return models.ActionResult{Success: true, Output: "Started container successfully"}, nil
 		}
 
 	case "resource.stop":
 		if dp, ok := prov.(*providers.DockerProvider); ok {
 			err := dp.StopContainer(ctx, payload.ResourceID)
 			if err != nil {
-				return ActionResult{Success: false, Error: err.Error()}, nil
+				return models.ActionResult{Success: false, Error: err.Error()}, nil
 			}
-			return ActionResult{Success: true, Output: "Stopped container successfully"}, nil
+			return models.ActionResult{Success: true, Output: "Stopped container successfully"}, nil
 		}
 
 	case "resource.restart":
 		if dp, ok := prov.(*providers.DockerProvider); ok {
 			err := dp.RestartContainer(ctx, payload.ResourceID)
 			if err != nil {
-				return ActionResult{Success: false, Error: err.Error()}, nil
+				return models.ActionResult{Success: false, Error: err.Error()}, nil
 			}
-			return ActionResult{Success: true, Output: "Restarted container successfully"}, nil
+			return models.ActionResult{Success: true, Output: "Restarted container successfully"}, nil
 		}
 
 	case "resource.delete":
 		if dp, ok := prov.(*providers.DockerProvider); ok {
 			err := dp.RemoveContainer(ctx, payload.ResourceID)
 			if err != nil {
-				return ActionResult{Success: false, Error: err.Error()}, nil
+				return models.ActionResult{Success: false, Error: err.Error()}, nil
 			}
-			return ActionResult{Success: true, Output: "Deleted container successfully"}, nil
+			return models.ActionResult{Success: true, Output: "Deleted container successfully"}, nil
 		}
 
 	case "resource.logs":
@@ -100,19 +86,19 @@ func (ar *ActionRegistry) Execute(ctx context.Context, payload ActionPayload) (A
 			}
 			logs, err := dp.GetLogs(ctx, payload.ResourceID, tail)
 			if err != nil {
-				return ActionResult{Success: false, Error: err.Error()}, nil
+				return models.ActionResult{Success: false, Error: err.Error()}, nil
 			}
-			return ActionResult{Success: true, Output: logs}, nil
+			return models.ActionResult{Success: true, Output: logs}, nil
 		}
 
 	case "service.launch":
 		return ar.executeServiceLaunch(ctx, payload)
 	}
 
-	return ActionResult{Success: false, Error: fmt.Sprintf("unsupported action %s for provider %s", payload.ActionID, payload.ProviderID)}, nil
+	return models.ActionResult{Success: false, Error: fmt.Sprintf("unsupported action %s for provider %s", payload.ActionID, payload.ProviderID)}, nil
 }
 
-func (ar *ActionRegistry) executeServiceLaunch(ctx context.Context, payload ActionPayload) (ActionResult, error) {
+func (ar *ActionRegistry) executeServiceLaunch(ctx context.Context, payload models.ActionPayload) (models.ActionResult, error) {
 	svcMgr := services.GetServiceManager()
 	remotePort, _ := strconv.Atoi(payload.Params["remotePort"])
 	localPort, _ := strconv.Atoi(payload.Params["localPort"])
@@ -133,8 +119,8 @@ func (ar *ActionRegistry) executeServiceLaunch(ctx context.Context, payload Acti
 
 	status, err := svcMgr.LaunchServiceWithStrategy(ctx, payload.HostID, svc)
 	if err != nil {
-		return ActionResult{Success: false, Error: err.Error()}, nil
+		return models.ActionResult{Success: false, Error: err.Error()}, nil
 	}
 
-	return ActionResult{Success: true, Output: status.LocalURL}, nil
+	return models.ActionResult{Success: true, Output: status.LocalURL}, nil
 }

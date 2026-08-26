@@ -538,6 +538,8 @@ function App() {
                                 onOpenTerminal={handleConnectResource}
                                 onOpenFiles={handleOpenResourceFiles}
                                 onAddHost={handleNewHost}
+                                onEditHost={handleEditHost}
+                                onDeleteHost={handleDeleteHost}
                                 activeResourceId={currentTab?.hostID}
                             />
                         )}

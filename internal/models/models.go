@@ -402,3 +402,19 @@ type AIChatMessage struct {
 	Reasoning string    `json:"reasoning,omitempty"`
 }
 
+// ==================== UNIVERSAL ACTION REGISTRY ====================
+
+type ActionPayload struct {
+	ActionID   string            `json:"actionId"` // e.g. "resource.start", "resource.stop", "resource.restart", "resource.logs", "resource.delete", "service.launch"
+	ProviderID string            `json:"providerId"`
+	ResourceID string            `json:"resourceId"`
+	HostID     string            `json:"hostId,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
+}
+
+type ActionResult struct {
+	Success bool   `json:"success"`
+	Output  string `json:"output,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+

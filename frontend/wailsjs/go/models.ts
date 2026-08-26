@@ -1,44 +1,3 @@
-export namespace actions {
-	
-	export class ActionPayload {
-	    actionId: string;
-	    providerId: string;
-	    resourceId: string;
-	    hostId?: string;
-	    params?: Record<string, string>;
-	
-	    static createFrom(source: any = {}) {
-	        return new ActionPayload(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.actionId = source["actionId"];
-	        this.providerId = source["providerId"];
-	        this.resourceId = source["resourceId"];
-	        this.hostId = source["hostId"];
-	        this.params = source["params"];
-	    }
-	}
-	export class ActionResult {
-	    success: boolean;
-	    output?: string;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ActionResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.output = source["output"];
-	        this.error = source["error"];
-	    }
-	}
-
-}
-
 export namespace diagnostics {
 	
 	export class DiagnosticsResult {
@@ -198,6 +157,42 @@ export namespace importers {
 
 export namespace models {
 	
+	export class ActionPayload {
+	    actionId: string;
+	    providerId: string;
+	    resourceId: string;
+	    hostId?: string;
+	    params?: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ActionPayload(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.actionId = source["actionId"];
+	        this.providerId = source["providerId"];
+	        this.resourceId = source["resourceId"];
+	        this.hostId = source["hostId"];
+	        this.params = source["params"];
+	    }
+	}
+	export class ActionResult {
+	    success: boolean;
+	    output?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ActionResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.output = source["output"];
+	        this.error = source["error"];
+	    }
+	}
 	export class Connection {
 	    id: string;
 	    hostId: string;

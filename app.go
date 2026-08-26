@@ -252,10 +252,6 @@ func (a *App) ToggleResourceFavorite(resourceID string) bool {
 	return a.discoveryMgr.ToggleFavorite(resourceID)
 }
 
-func (a *App) ExecuteResourceAction(payload actions.ActionPayload) (actions.ActionResult, error) {
-	return a.actionReg.Execute(a.ctx, payload)
-}
-
 func (a *App) TriggerBackgroundRefresh() {
 	go func() {
 		results := a.discoveryMgr.RefreshAll(context.Background())
@@ -293,6 +289,10 @@ func (a *App) DockerRestartContainer(containerID string) error {
 
 func (a *App) DockerRemoveContainer(containerID string) error {
 	return a.dockerProv.RemoveContainer(a.ctx, containerID)
+}
+
+func (a *App) ExecuteResourceAction(payload models.ActionPayload) (models.ActionResult, error) {
+	return a.actionReg.Execute(a.ctx, payload)
 }
 
 func (a *App) DockerGetLogs(containerID string, tail int) (string, error) {
