@@ -79,6 +79,8 @@ export function ScanSubnet(arg1:string,arg2:Array<number>):Promise<Array<models.
 
 export function SendTerminalInput(arg1:string,arg2:string):Promise<void>;
 
+export function StartConnectionTerminal(arg1:models.Connection,arg2:number,arg3:number):Promise<string>;
+
 export function StartDockerTerminal(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function StartLocalTerminal(arg1:number,arg2:number):Promise<string>;

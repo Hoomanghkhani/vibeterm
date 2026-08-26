@@ -52,12 +52,25 @@ func (dp *DockerProvider) Discover(ctx context.Context) ([]models.Resource, erro
 			name = c.Image
 		}
 
+		conns := []models.Connection{
+			{
+				ID:     fmt.Sprintf("conn-docker-exec-%s", c.ID),
+				HostID: c.ID,
+				Name:   "Interactive Container Shell",
+				Type:   models.ConnDocker,
+				Target: c.ID,
+			},
+		}
+
 		resources = append(resources, models.Resource{
-			ID:         c.ID,
-			ProviderID: dp.ID(),
-			Type:       models.ResourceContainer,
-			Name:       name,
-			Status:     status,
+			ID:          c.ID,
+			ProviderID:  dp.ID(),
+			Type:        models.ResourceContainer,
+			Name:        name,
+			Folder:      "Docker Containers",
+			Status:      status,
+			Connections: conns,
+			Tags:        []string{"docker", c.Image},
 			Metadata: map[string]string{
 				"image":   c.Image,
 				"command": c.Command,

@@ -9,6 +9,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"vibeterm/internal/config"
+	"vibeterm/internal/connection"
 	"vibeterm/internal/diagnostics"
 	"vibeterm/internal/discovery"
 	"vibeterm/internal/forwarding"
@@ -30,6 +31,7 @@ type App struct {
 	ctx          context.Context
 	transportReg *transport.TransportRegistry
 	providerReg  *providers.ProviderRegistry
+	connMgr      *connection.ConnectionManager
 	sessionMgr   *session.SessionManager
 	knownHosts   *ssh.KnownHostsManager
 	orchestrator *forwarding.ForwardingOrchestrator
@@ -52,6 +54,7 @@ func NewApp() *App {
 	transReg := transport.GetRegistry()
 	provReg := providers.GetRegistry()
 	dockerProvider := providers.NewDockerProvider()
+	connManager := connection.GetConnectionManager()
 
 	// Register infrastructure providers
 	provReg.Register(providers.NewLocalProvider())
@@ -61,6 +64,7 @@ func NewApp() *App {
 	return &App{
 		transportReg: transReg,
 		providerReg:  provReg,
+		connMgr:      connManager,
 		sessionMgr:   session.GetManager(),
 		knownHosts:   ssh.GetKnownHostsManager(),
 		orchestrator: forwarding.GetOrchestrator(),
@@ -116,14 +120,19 @@ func (a *App) RenameFolder(oldPath, newPath string) error {
 	return nil
 }
 
-// ==================== UNIFIED TERMINAL TRANSPORT & SESSIONS ====================
+// ==================== UNIFIED PIPELINE (Connection ➔ Session ➔ Transport) ====================
 
-func (a *App) StartLocalTerminal(cols, rows int) (string, error) {
-	sessionID := fmt.Sprintf("local-%d", time.Now().UnixNano())
-	a.sessionMgr.CreateSession(sessionID, "local", "Local Shell", cols, rows)
+func (a *App) StartConnectionTerminal(conn models.Connection, cols, rows int) (string, error) {
+	sessionID := fmt.Sprintf("sess-%s-%d", conn.ID, time.Now().UnixNano())
+	a.sessionMgr.CreateSession(sessionID, conn.HostID, conn.Name, cols, rows)
 
-	trans := transport.NewLocalTransport(sessionID)
-	err := trans.Start(
+	trans, err := a.connMgr.CreateTransportFromConnection(a.ctx, conn, sessionID)
+	if err != nil {
+		_ = a.sessionMgr.TransitionState(sessionID, models.SessionFailed, err.Error())
+		return "", err
+	}
+
+	err = trans.Start(
 		a.ctx,
 		cols,
 		rows,
@@ -148,6 +157,15 @@ func (a *App) StartLocalTerminal(cols, rows int) (string, error) {
 	a.transportReg.Register(trans)
 	_ = a.sessionMgr.TransitionState(sessionID, models.SessionConnected, "")
 	return sessionID, nil
+}
+
+func (a *App) StartLocalTerminal(cols, rows int) (string, error) {
+	return a.StartConnectionTerminal(models.Connection{
+		ID:     "local",
+		HostID: "local",
+		Name:   "Local Shell",
+		Type:   models.ConnLocal,
+	}, cols, rows)
 }
 
 func (a *App) StartSSHTerminal(hostID string, cols, rows int) (string, error) {
@@ -157,67 +175,22 @@ func (a *App) StartSSHTerminal(hostID string, cols, rows int) (string, error) {
 		return "", fmt.Errorf("host with ID %s not found", hostID)
 	}
 
-	sessionID := fmt.Sprintf("ssh-%s-%d", hostID, time.Now().UnixNano())
-	a.sessionMgr.CreateSession(sessionID, hostID, host.Name, cols, rows)
-
-	trans := transport.NewSSHTransport(sessionID, host)
-	err := trans.Start(
-		a.ctx,
-		cols,
-		rows,
-		func(data []byte) {
-			if a.ctx != nil {
-				a.sessionMgr.Touch(sessionID)
-				runtime.EventsEmit(a.ctx, "terminal:output:"+sessionID, string(data))
-			}
-		},
-		func() {
-			if a.ctx != nil {
-				_ = a.sessionMgr.TransitionState(sessionID, models.SessionDisconnected, "")
-				runtime.EventsEmit(a.ctx, "terminal:closed:"+sessionID, sessionID)
-			}
-		},
-	)
-	if err != nil {
-		_ = a.sessionMgr.TransitionState(sessionID, models.SessionFailed, err.Error())
-		return "", err
-	}
-
-	a.transportReg.Register(trans)
-	_ = a.sessionMgr.TransitionState(sessionID, models.SessionConnected, "")
-	return sessionID, nil
+	return a.StartConnectionTerminal(models.Connection{
+		ID:     fmt.Sprintf("ssh-%s", hostID),
+		HostID: hostID,
+		Name:   host.Name,
+		Type:   models.ConnSSH,
+	}, cols, rows)
 }
 
 func (a *App) StartDockerTerminal(containerID string, cols, rows int) (string, error) {
-	sessionID := fmt.Sprintf("docker-%s-%d", containerID, time.Now().UnixNano())
-	a.sessionMgr.CreateSession(sessionID, containerID, fmt.Sprintf("Docker: %s", containerID[:min(8, len(containerID))]), cols, rows)
-
-	trans := transport.NewDockerExecTransport(sessionID, containerID)
-	err := trans.Start(
-		a.ctx,
-		cols,
-		rows,
-		func(data []byte) {
-			if a.ctx != nil {
-				a.sessionMgr.Touch(sessionID)
-				runtime.EventsEmit(a.ctx, "terminal:output:"+sessionID, string(data))
-			}
-		},
-		func() {
-			if a.ctx != nil {
-				_ = a.sessionMgr.TransitionState(sessionID, models.SessionDisconnected, "")
-				runtime.EventsEmit(a.ctx, "terminal:closed:"+sessionID, sessionID)
-			}
-		},
-	)
-	if err != nil {
-		_ = a.sessionMgr.TransitionState(sessionID, models.SessionFailed, err.Error())
-		return "", err
-	}
-
-	a.transportReg.Register(trans)
-	_ = a.sessionMgr.TransitionState(sessionID, models.SessionConnected, "")
-	return sessionID, nil
+	return a.StartConnectionTerminal(models.Connection{
+		ID:     fmt.Sprintf("docker-%s", containerID),
+		HostID: containerID,
+		Name:   fmt.Sprintf("Docker: %s", containerID[:min(8, len(containerID))]),
+		Type:   models.ConnDocker,
+		Target: containerID,
+	}, cols, rows)
 }
 
 func (a *App) SendTerminalInput(sessionID string, data string) error {

@@ -142,6 +142,10 @@ export function SendTerminalInput(arg1, arg2) {
   return window['go']['main']['App']['SendTerminalInput'](arg1, arg2);
 }
 
+export function StartConnectionTerminal(arg1, arg2, arg3) {
+  return window['go']['main']['App']['StartConnectionTerminal'](arg1, arg2, arg3);
+}
+
 export function StartDockerTerminal(arg1, arg2, arg3) {
   return window['go']['main']['App']['StartDockerTerminal'](arg1, arg2, arg3);
 }

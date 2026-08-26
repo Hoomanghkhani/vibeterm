@@ -83,13 +83,17 @@ const (
 )
 
 type Resource struct {
-	ID         string            `json:"id"`
-	ProviderID string            `json:"providerId"`
-	Type       ResourceType      `json:"type"`
-	Name       string            `json:"name"`
-	ParentID   string            `json:"parentId,omitempty"`
-	Status     string            `json:"status"` // "running", "stopped", "online", "offline"
-	Metadata   map[string]string `json:"metadata,omitempty"`
+	ID          string            `json:"id"`
+	ProviderID  string            `json:"providerId"`
+	Type        ResourceType      `json:"type"`
+	Name        string            `json:"name"`
+	ParentID    string            `json:"parentId,omitempty"`
+	Folder      string            `json:"folder,omitempty"`
+	Status      string            `json:"status"` // "running", "stopped", "online", "offline"
+	Connections []Connection      `json:"connections,omitempty"`
+	Services    []RemoteService   `json:"services,omitempty"`
+	Tags        []string          `json:"tags,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
 }
 
 // ==================== REMOTE SERVICES & TUNNELS ====================

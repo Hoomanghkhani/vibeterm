@@ -33,6 +33,14 @@ func (lp *LocalProvider) Discover(ctx context.Context) ([]models.Resource, error
 			Type:       models.ResourceDevice,
 			Name:       "Local Shell (Native PTY)",
 			Status:     "online",
+			Connections: []models.Connection{
+				{
+					ID:     "conn-local-shell",
+					HostID: "local",
+					Name:   "Local Shell",
+					Type:   models.ConnLocal,
+				},
+			},
 			Metadata: map[string]string{
 				"protocol": "local",
 			},
@@ -47,6 +55,14 @@ func (lp *LocalProvider) GetResource(ctx context.Context, id string) (*models.Re
 		Type:       models.ResourceDevice,
 		Name:       "Local Shell",
 		Status:     "online",
+		Connections: []models.Connection{
+			{
+				ID:     "conn-local-shell",
+				HostID: "local",
+				Name:   "Local Shell",
+				Type:   models.ConnLocal,
+			},
+		},
 	}, nil
 }
 

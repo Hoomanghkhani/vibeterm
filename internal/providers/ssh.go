@@ -42,12 +42,34 @@ func (sp *SSHProvider) Discover(ctx context.Context) ([]models.Resource, error) 
 		if h.Health == models.HealthOnline {
 			status = "online"
 		}
+
+		conns := []models.Connection{
+			{
+				ID:     fmt.Sprintf("conn-ssh-%s", h.ID),
+				HostID: h.ID,
+				Name:   "Interactive SSH Shell",
+				Type:   models.ConnSSH,
+				Port:   h.Port,
+			},
+			{
+				ID:     fmt.Sprintf("conn-sftp-%s", h.ID),
+				HostID: h.ID,
+				Name:   "Remote SFTP File Explorer",
+				Type:   models.ConnSFTP,
+				Port:   h.Port,
+			},
+		}
+
 		resources = append(resources, models.Resource{
-			ID:         h.ID,
-			ProviderID: sp.ID(),
-			Type:       models.ResourceServer,
-			Name:       h.Name,
-			Status:     status,
+			ID:          h.ID,
+			ProviderID:  sp.ID(),
+			Type:        models.ResourceServer,
+			Name:        h.Name,
+			Folder:      h.Folder,
+			Tags:        h.Tags,
+			Status:      status,
+			Connections: conns,
+			Services:    h.Services,
 			Metadata: map[string]string{
 				"hostname":    h.Hostname,
 				"username":    h.Username,
@@ -73,7 +95,26 @@ func (sp *SSHProvider) GetResource(ctx context.Context, id string) (*models.Reso
 		ProviderID: sp.ID(),
 		Type:       models.ResourceServer,
 		Name:       host.Name,
+		Folder:     host.Folder,
+		Tags:       host.Tags,
 		Status:     string(host.Health),
+		Connections: []models.Connection{
+			{
+				ID:     fmt.Sprintf("conn-ssh-%s", host.ID),
+				HostID: host.ID,
+				Name:   "Interactive SSH Shell",
+				Type:   models.ConnSSH,
+				Port:   host.Port,
+			},
+			{
+				ID:     fmt.Sprintf("conn-sftp-%s", host.ID),
+				HostID: host.ID,
+				Name:   "Remote SFTP File Explorer",
+				Type:   models.ConnSFTP,
+				Port:   host.Port,
+			},
+		},
+		Services: host.Services,
 		Metadata: map[string]string{
 			"hostname": host.Hostname,
 			"username": host.Username,
