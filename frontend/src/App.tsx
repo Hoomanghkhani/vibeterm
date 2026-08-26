@@ -29,6 +29,7 @@ import { HostManagerView } from './HostManagerView';
 import { FileExplorerView } from './FileExplorerView';
 import { SidebarSFTP } from './SidebarSFTP';
 import { EndpointsTree } from './EndpointsTree';
+import { InfrastructureTree } from './InfrastructureTree';
 import { TunnelsView } from './TunnelsView';
 import { SnippetsView } from './SnippetsView';
 import { GitOpsView } from './GitOpsView';
@@ -45,7 +46,7 @@ type SidebarTab = 'endpoints' | 'sftp';
 export interface TerminalTab {
     id: string;
     title: string;
-    type: 'local' | 'ssh';
+    type: 'local' | 'ssh' | 'docker';
     hostID?: string;
     splitMode: SplitMode;
     panes: TerminalPane[];
@@ -165,6 +166,44 @@ function App() {
         setActiveTabId(newTabId);
         setActiveView('terminal');
         setSidebarTab('sftp');
+    };
+
+    // Open a new tab from unified Infrastructure Resource
+    const handleConnectResource = (node: any) => {
+        const id = node.resourceId || node.hostId || node.id;
+        const name = node.alias || node.name || 'Terminal';
+        let termType: 'local' | 'ssh' | 'docker' = 'ssh';
+
+        if (node.providerId?.includes('docker') || node.connectionId?.includes('docker') || node.nodeType === 'container') {
+            termType = 'docker';
+        } else if (node.providerId?.includes('local') || id === 'local' || id === 'local-shell') {
+            termType = 'local';
+        }
+
+        const newTabId = `tab-${termType}-${id}-${Date.now()}`;
+        const paneId = `pane-${termType}-${id}-${Date.now()}`;
+
+        const newTab: TerminalTab = {
+            id: newTabId,
+            title: name,
+            type: termType,
+            hostID: id,
+            splitMode: 'none',
+            panes: [{ id: paneId, title: name, type: termType, hostID: id }],
+            activePaneId: paneId,
+        };
+
+        setTabs((prev) => [...prev, newTab]);
+        setActiveTabId(newTabId);
+        setActiveView('terminal');
+        if (termType === 'ssh') {
+            setSidebarTab('sftp');
+        }
+    };
+
+    const handleOpenResourceFiles = (node: any) => {
+        const id = node.resourceId || node.hostId || node.id;
+        setActiveView('files');
     };
 
     // Open a new local shell tab
@@ -493,16 +532,13 @@ function App() {
                             </div>
                         </div>
 
-                        {/* Tab Content 1: Nested Folders & Endpoints Tree */}
+                        {/* Tab Content 1: Unified Infrastructure Tree */}
                         {sidebarTab === 'endpoints' && (
-                            <EndpointsTree 
-                                hosts={hosts}
-                                activeHostId={currentTab?.hostID}
-                                onConnectHost={handleConnectHost}
-                                onEditHost={handleEditHost}
-                                onDeleteHost={handleDeleteHost}
-                                onNewHostInFolder={handleNewHostInFolder}
-                                onReloadHosts={loadHosts}
+                            <InfrastructureTree 
+                                onOpenTerminal={handleConnectResource}
+                                onOpenFiles={handleOpenResourceFiles}
+                                onAddHost={handleNewHost}
+                                activeResourceId={currentTab?.hostID}
                             />
                         )}
 

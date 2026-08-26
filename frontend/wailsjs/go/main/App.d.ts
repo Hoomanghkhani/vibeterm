@@ -53,6 +53,8 @@ export function GetKnownHosts():Promise<Array<models.KnownHostRecord>>;
 
 export function GetSnippets():Promise<Array<models.Snippet>>;
 
+export function GetUnifiedInfrastructureTree():Promise<Array<models.InfrastructureNode>>;
+
 export function ImportMobaXterm(arg1:string):Promise<importers.ImportResult>;
 
 export function ImportTermiusJSON(arg1:string):Promise<importers.ImportResult>;
@@ -64,6 +66,8 @@ export function LaunchRemoteService(arg1:string,arg2:models.RemoteService):Promi
 export function ListRemoteFiles(arg1:string,arg2:string):Promise<Array<ssh.RemoteFileInfo>>;
 
 export function ReadRemoteFile(arg1:string,arg2:string):Promise<string>;
+
+export function RefreshDiscovery():Promise<Array<models.ProviderDiscoveryResult>>;
 
 export function RenameFolder(arg1:string,arg2:string):Promise<void>;
 
@@ -78,6 +82,8 @@ export function SaveSnippet(arg1:models.Snippet):Promise<void>;
 export function ScanSubnet(arg1:string,arg2:Array<number>):Promise<Array<models.DiscoveredDevice>>;
 
 export function SendTerminalInput(arg1:string,arg2:string):Promise<void>;
+
+export function SetResourceAlias(arg1:string,arg2:string):Promise<void>;
 
 export function StartConnectionTerminal(arg1:models.Connection,arg2:number,arg3:number):Promise<string>;
 
@@ -100,5 +106,7 @@ export function TestDiagnosticsDNS(arg1:string):Promise<diagnostics.DiagnosticsR
 export function TestDiagnosticsTCP(arg1:string,arg2:number):Promise<diagnostics.DiagnosticsResult>;
 
 export function TogglePlugin(arg1:string,arg2:boolean):Promise<void>;
+
+export function ToggleResourceFavorite(arg1:string):Promise<boolean>;
 
 export function UploadRemoteFile(arg1:string,arg2:string,arg3:string):Promise<void>;

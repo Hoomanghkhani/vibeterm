@@ -47,6 +47,7 @@ type App struct {
 	diagnostics  *diagnostics.NetDiagnostics
 	pluginMgr    *plugins.PluginManager
 	importer     *importers.SessionImporter
+	discoveryMgr *providers.DiscoveryManager
 }
 
 // NewApp creates a new App application struct
@@ -55,6 +56,7 @@ func NewApp() *App {
 	provReg := providers.GetRegistry()
 	dockerProvider := providers.NewDockerProvider()
 	connManager := connection.GetConnectionManager()
+	discManager := providers.GetDiscoveryManager()
 
 	// Register infrastructure providers
 	provReg.Register(providers.NewLocalProvider())
@@ -80,6 +82,7 @@ func NewApp() *App {
 		diagnostics:  diagnostics.NewNetDiagnostics(),
 		pluginMgr:    plugins.GetPluginManager(),
 		importer:     importers.NewSessionImporter(),
+		discoveryMgr: discManager,
 	}
 }
 
@@ -227,6 +230,22 @@ func (a *App) GetKnownHosts() []models.KnownHostRecord {
 
 func (a *App) DiscoverAllResources() []models.Resource {
 	return a.providerReg.DiscoverAll(a.ctx)
+}
+
+func (a *App) GetUnifiedInfrastructureTree() []models.InfrastructureNode {
+	return a.discoveryMgr.GetUnifiedTree(a.ctx)
+}
+
+func (a *App) RefreshDiscovery() []models.ProviderDiscoveryResult {
+	return a.discoveryMgr.RefreshAll(a.ctx)
+}
+
+func (a *App) SetResourceAlias(resourceID, alias string) {
+	a.discoveryMgr.SetResourceAlias(resourceID, alias)
+}
+
+func (a *App) ToggleResourceFavorite(resourceID string) bool {
+	return a.discoveryMgr.ToggleFavorite(resourceID)
 }
 
 func (a *App) DiscoverSSHConfig() ([]models.Host, error) {

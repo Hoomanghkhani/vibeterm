@@ -82,18 +82,82 @@ const (
 	ResourceDevice    ResourceType = "device"
 )
 
+type ResourceCapabilities struct {
+	CanConnect      bool `json:"canConnect"`
+	CanOpenTerminal bool `json:"canOpenTerminal"`
+	CanBrowseFiles  bool `json:"canBrowseFiles"`
+	CanOpenLogs     bool `json:"canOpenLogs"`
+	CanStart        bool `json:"canStart"`
+	CanStop         bool `json:"canStop"`
+	CanRestart      bool `json:"canRestart"`
+	CanInspect      bool `json:"canInspect"`
+	CanCreateTunnel bool `json:"canCreateTunnel"`
+	CanOpenService  bool `json:"canOpenService"`
+	CanDelete       bool `json:"canDelete"`
+}
+
 type Resource struct {
-	ID          string            `json:"id"`
-	ProviderID  string            `json:"providerId"`
-	Type        ResourceType      `json:"type"`
-	Name        string            `json:"name"`
-	ParentID    string            `json:"parentId,omitempty"`
-	Folder      string            `json:"folder,omitempty"`
-	Status      string            `json:"status"` // "running", "stopped", "online", "offline"
-	Connections []Connection      `json:"connections,omitempty"`
-	Services    []RemoteService   `json:"services,omitempty"`
-	Tags        []string          `json:"tags,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID           string               `json:"id"`
+	ProviderID   string               `json:"providerId"`
+	Type         ResourceType         `json:"type"`
+	Name         string               `json:"name"`
+	ParentID     string               `json:"parentId,omitempty"`
+	Folder       string               `json:"folder,omitempty"`
+	Status       string               `json:"status"` // "running", "stopped", "online", "offline"
+	Capabilities ResourceCapabilities `json:"capabilities"`
+	Connections  []Connection         `json:"connections,omitempty"`
+	Services     []RemoteService      `json:"services,omitempty"`
+	Tags         []string             `json:"tags,omitempty"`
+	Metadata     map[string]string    `json:"metadata,omitempty"`
+}
+
+type NodeType string
+
+const (
+	NodeProvider   NodeType = "provider"
+	NodeGroup      NodeType = "group"
+	NodeResource   NodeType = "resource"
+	NodeHost       NodeType = "host"
+	NodeConnection NodeType = "connection"
+	NodeService    NodeType = "service"
+)
+
+type InfrastructureNode struct {
+	ID           string               `json:"id"`
+	ParentID     string               `json:"parentId,omitempty"`
+	NodeType     NodeType             `json:"nodeType"`
+	ProviderID   string               `json:"providerId,omitempty"`
+	ResourceID   string               `json:"resourceId,omitempty"`
+	HostID       string               `json:"hostId,omitempty"`
+	ConnectionID string               `json:"connectionId,omitempty"`
+	ServiceID    string               `json:"serviceId,omitempty"`
+	Name         string               `json:"name"`
+	Alias        string               `json:"alias,omitempty"`
+	Status       string               `json:"status"`
+	Icon         string               `json:"icon,omitempty"`
+	Capabilities ResourceCapabilities `json:"capabilities"`
+	Children     []InfrastructureNode `json:"children,omitempty"`
+	Metadata     map[string]string    `json:"metadata,omitempty"`
+}
+
+type ProviderStatus string
+
+const (
+	StatusNotConfigured ProviderStatus = "not_configured"
+	StatusDiscovering   ProviderStatus = "discovering"
+	StatusReady         ProviderStatus = "ready"
+	StatusDegraded      ProviderStatus = "degraded"
+	StatusUnavailable   ProviderStatus = "unavailable"
+	StatusFailed        ProviderStatus = "failed"
+)
+
+type ProviderDiscoveryResult struct {
+	ProviderID string         `json:"providerId"`
+	Name       string         `json:"name"`
+	Status     ProviderStatus `json:"status"`
+	Resources  []Resource     `json:"resources"`
+	Error      string         `json:"error,omitempty"`
+	LastSync   time.Time      `json:"lastSync"`
 }
 
 // ==================== REMOTE SERVICES & TUNNELS ====================

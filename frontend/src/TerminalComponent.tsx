@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { StartLocalTerminal, StartSSHTerminal, SendTerminalInput, ResizeTerminal, CloseTerminal } from '../wailsjs/go/main/App';
+import { StartLocalTerminal, StartSSHTerminal, StartDockerTerminal, SendTerminalInput, ResizeTerminal, CloseTerminal } from '../wailsjs/go/main/App';
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
 import { Copy, Clipboard, CheckSquare, Trash2 } from 'lucide-react';
 
 interface TerminalProps {
-    sessionType: 'local' | 'ssh';
+    sessionType: 'local' | 'ssh' | 'docker';
     hostID?: string;
 }
 
@@ -75,6 +75,8 @@ export const TerminalComponent: React.FC<TerminalProps> = ({ sessionType, hostID
                     sid = await StartLocalTerminal(cols, rows);
                 } else if (sessionType === 'ssh' && hostID) {
                     sid = await StartSSHTerminal(hostID, cols, rows);
+                } else if (sessionType === 'docker' && hostID) {
+                    sid = await StartDockerTerminal(hostID, cols, rows);
                 }
 
                 sessionIDRef.current = sid;

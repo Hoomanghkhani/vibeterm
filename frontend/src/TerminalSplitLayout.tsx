@@ -5,7 +5,7 @@ import { Split, X, Terminal, Plus, Columns, Rows, Grid } from 'lucide-react';
 export interface TerminalPane {
     id: string;
     title: string;
-    type: 'local' | 'ssh';
+    type: 'local' | 'ssh' | 'docker';
     hostID?: string;
 }
 

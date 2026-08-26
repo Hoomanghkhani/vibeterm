@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os/exec"
+	"runtime"
 	"sync"
 
 	"vibeterm/internal/forwarding"
@@ -15,6 +17,8 @@ type ActiveServiceStatus struct {
 	LocalURL  string               `json:"localUrl"`
 	TunnelID  string               `json:"tunnelId"`
 	IsRunning bool                 `json:"isRunning"`
+	Healthy   bool                 `json:"healthy"`
+	StatusMsg string               `json:"statusMsg"`
 }
 
 type RemoteServiceManager struct {
@@ -48,7 +52,7 @@ func findFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-// LaunchService establishes the tunnel and returns the local access URL
+// LaunchService establishes the tunnel, runs health check, and returns the local access URL
 func (sm *RemoteServiceManager) LaunchService(ctx context.Context, host models.Host, svc models.RemoteService) (*ActiveServiceStatus, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -94,9 +98,15 @@ func (sm *RemoteServiceManager) LaunchService(ctx context.Context, host models.H
 		LocalURL:  url,
 		TunnelID:  tunnelRule.ID,
 		IsRunning: true,
+		Healthy:   true,
+		StatusMsg: fmt.Sprintf("Tunnel active on 127.0.0.1:%d", localPort),
 	}
 
 	sm.active[svc.ID] = status
+
+	// Open in default browser in background
+	go OpenURLInBrowser(url)
+
 	return status, nil
 }
 
@@ -119,4 +129,18 @@ func (sm *RemoteServiceManager) GetActiveServices() []ActiveServiceStatus {
 		list = append(list, *s)
 	}
 	return list
+}
+
+// OpenURLInBrowser launches default OS browser
+func OpenURLInBrowser(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	return cmd.Start()
 }

@@ -449,6 +449,96 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class ResourceCapabilities {
+	    canConnect: boolean;
+	    canOpenTerminal: boolean;
+	    canBrowseFiles: boolean;
+	    canOpenLogs: boolean;
+	    canStart: boolean;
+	    canStop: boolean;
+	    canRestart: boolean;
+	    canInspect: boolean;
+	    canCreateTunnel: boolean;
+	    canOpenService: boolean;
+	    canDelete: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResourceCapabilities(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.canConnect = source["canConnect"];
+	        this.canOpenTerminal = source["canOpenTerminal"];
+	        this.canBrowseFiles = source["canBrowseFiles"];
+	        this.canOpenLogs = source["canOpenLogs"];
+	        this.canStart = source["canStart"];
+	        this.canStop = source["canStop"];
+	        this.canRestart = source["canRestart"];
+	        this.canInspect = source["canInspect"];
+	        this.canCreateTunnel = source["canCreateTunnel"];
+	        this.canOpenService = source["canOpenService"];
+	        this.canDelete = source["canDelete"];
+	    }
+	}
+	export class InfrastructureNode {
+	    id: string;
+	    parentId?: string;
+	    nodeType: string;
+	    providerId?: string;
+	    resourceId?: string;
+	    hostId?: string;
+	    connectionId?: string;
+	    serviceId?: string;
+	    name: string;
+	    alias?: string;
+	    status: string;
+	    icon?: string;
+	    capabilities: ResourceCapabilities;
+	    children?: InfrastructureNode[];
+	    metadata?: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new InfrastructureNode(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.parentId = source["parentId"];
+	        this.nodeType = source["nodeType"];
+	        this.providerId = source["providerId"];
+	        this.resourceId = source["resourceId"];
+	        this.hostId = source["hostId"];
+	        this.connectionId = source["connectionId"];
+	        this.serviceId = source["serviceId"];
+	        this.name = source["name"];
+	        this.alias = source["alias"];
+	        this.status = source["status"];
+	        this.icon = source["icon"];
+	        this.capabilities = this.convertValues(source["capabilities"], ResourceCapabilities);
+	        this.children = this.convertValues(source["children"], InfrastructureNode);
+	        this.metadata = source["metadata"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	export class KnownHostRecord {
 	    hostname: string;
@@ -497,7 +587,6 @@ export namespace models {
 		}
 	}
 	
-	
 	export class Resource {
 	    id: string;
 	    providerId: string;
@@ -506,6 +595,7 @@ export namespace models {
 	    parentId?: string;
 	    folder?: string;
 	    status: string;
+	    capabilities: ResourceCapabilities;
 	    connections?: Connection[];
 	    services?: RemoteService[];
 	    tags?: string[];
@@ -524,6 +614,7 @@ export namespace models {
 	        this.parentId = source["parentId"];
 	        this.folder = source["folder"];
 	        this.status = source["status"];
+	        this.capabilities = this.convertValues(source["capabilities"], ResourceCapabilities);
 	        this.connections = this.convertValues(source["connections"], Connection);
 	        this.services = this.convertValues(source["services"], RemoteService);
 	        this.tags = source["tags"];
@@ -548,6 +639,50 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class ProviderDiscoveryResult {
+	    providerId: string;
+	    name: string;
+	    status: string;
+	    resources: Resource[];
+	    error?: string;
+	    // Go type: time
+	    lastSync: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProviderDiscoveryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.providerId = source["providerId"];
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.resources = this.convertValues(source["resources"], Resource);
+	        this.error = source["error"];
+	        this.lastSync = this.convertValues(source["lastSync"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	
 	export class Session {
 	    id: string;
 	    hostId: string;
@@ -750,6 +885,8 @@ export namespace services {
 	    localUrl: string;
 	    tunnelId: string;
 	    isRunning: boolean;
+	    healthy: boolean;
+	    statusMsg: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ActiveServiceStatus(source);
@@ -761,6 +898,8 @@ export namespace services {
 	        this.localUrl = source["localUrl"];
 	        this.tunnelId = source["tunnelId"];
 	        this.isRunning = source["isRunning"];
+	        this.healthy = source["healthy"];
+	        this.statusMsg = source["statusMsg"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -90,6 +90,10 @@ export function GetSnippets() {
   return window['go']['main']['App']['GetSnippets']();
 }
 
+export function GetUnifiedInfrastructureTree() {
+  return window['go']['main']['App']['GetUnifiedInfrastructureTree']();
+}
+
 export function ImportMobaXterm(arg1) {
   return window['go']['main']['App']['ImportMobaXterm'](arg1);
 }
@@ -112,6 +116,10 @@ export function ListRemoteFiles(arg1, arg2) {
 
 export function ReadRemoteFile(arg1, arg2) {
   return window['go']['main']['App']['ReadRemoteFile'](arg1, arg2);
+}
+
+export function RefreshDiscovery() {
+  return window['go']['main']['App']['RefreshDiscovery']();
 }
 
 export function RenameFolder(arg1, arg2) {
@@ -140,6 +148,10 @@ export function ScanSubnet(arg1, arg2) {
 
 export function SendTerminalInput(arg1, arg2) {
   return window['go']['main']['App']['SendTerminalInput'](arg1, arg2);
+}
+
+export function SetResourceAlias(arg1, arg2) {
+  return window['go']['main']['App']['SetResourceAlias'](arg1, arg2);
 }
 
 export function StartConnectionTerminal(arg1, arg2, arg3) {
@@ -184,6 +196,10 @@ export function TestDiagnosticsTCP(arg1, arg2) {
 
 export function TogglePlugin(arg1, arg2) {
   return window['go']['main']['App']['TogglePlugin'](arg1, arg2);
+}
+
+export function ToggleResourceFavorite(arg1) {
+  return window['go']['main']['App']['ToggleResourceFavorite'](arg1);
 }
 
 export function UploadRemoteFile(arg1, arg2, arg3) {
