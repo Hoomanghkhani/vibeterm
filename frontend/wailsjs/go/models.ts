@@ -498,6 +498,30 @@ export namespace models {
 	}
 	
 	
+	export class Resource {
+	    id: string;
+	    providerId: string;
+	    type: string;
+	    name: string;
+	    parentId?: string;
+	    status: string;
+	    metadata?: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new Resource(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.providerId = source["providerId"];
+	        this.type = source["type"];
+	        this.name = source["name"];
+	        this.parentId = source["parentId"];
+	        this.status = source["status"];
+	        this.metadata = source["metadata"];
+	    }
+	}
 	export class Session {
 	    id: string;
 	    hostId: string;

@@ -17,18 +17,19 @@ import (
 	"vibeterm/internal/importers"
 	"vibeterm/internal/models"
 	"vibeterm/internal/plugins"
-	"vibeterm/internal/pty"
+	"vibeterm/internal/providers"
 	"vibeterm/internal/scanner"
 	"vibeterm/internal/services"
 	"vibeterm/internal/session"
 	"vibeterm/internal/ssh"
+	"vibeterm/internal/transport"
 )
 
 // App struct
 type App struct {
 	ctx          context.Context
-	localManager *pty.LocalSessionManager
-	sshManager   *ssh.SessionManager
+	transportReg *transport.TransportRegistry
+	providerReg  *providers.ProviderRegistry
 	sessionMgr   *session.SessionManager
 	knownHosts   *ssh.KnownHostsManager
 	orchestrator *forwarding.ForwardingOrchestrator
@@ -39,6 +40,7 @@ type App struct {
 	sftpMgr      *ssh.SFTPManager
 	sshDiscovery *discovery.SSHConfigDiscovery
 	dockerDisc   *discovery.DockerDiscovery
+	dockerProv   *providers.DockerProvider
 	toolDetector *discovery.ToolDetector
 	diagnostics  *diagnostics.NetDiagnostics
 	pluginMgr    *plugins.PluginManager
@@ -47,9 +49,18 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+	transReg := transport.GetRegistry()
+	provReg := providers.GetRegistry()
+	dockerProvider := providers.NewDockerProvider()
+
+	// Register infrastructure providers
+	provReg.Register(providers.NewLocalProvider())
+	provReg.Register(providers.NewSSHProvider())
+	provReg.Register(dockerProvider)
+
 	return &App{
-		localManager: pty.GetLocalManager(),
-		sshManager:   ssh.GetSessionManager(),
+		transportReg: transReg,
+		providerReg:  provReg,
 		sessionMgr:   session.GetManager(),
 		knownHosts:   ssh.GetKnownHostsManager(),
 		orchestrator: forwarding.GetOrchestrator(),
@@ -60,6 +71,7 @@ func NewApp() *App {
 		sftpMgr:      ssh.NewSFTPManager(),
 		sshDiscovery: discovery.NewSSHConfigDiscovery(),
 		dockerDisc:   discovery.NewDockerDiscovery(),
+		dockerProv:   dockerProvider,
 		toolDetector: discovery.NewToolDetector(),
 		diagnostics:  diagnostics.NewNetDiagnostics(),
 		pluginMgr:    plugins.GetPluginManager(),
@@ -104,33 +116,38 @@ func (a *App) RenameFolder(oldPath, newPath string) error {
 	return nil
 }
 
-// ==================== INTERACTIVE TERMINAL & SESSIONS ====================
+// ==================== UNIFIED TERMINAL TRANSPORT & SESSIONS ====================
 
 func (a *App) StartLocalTerminal(cols, rows int) (string, error) {
-	var sessionID string
-	sess, err := a.localManager.StartLocalSession(
+	sessionID := fmt.Sprintf("local-%d", time.Now().UnixNano())
+	a.sessionMgr.CreateSession(sessionID, "local", "Local Shell", cols, rows)
+
+	trans := transport.NewLocalTransport(sessionID)
+	err := trans.Start(
+		a.ctx,
 		cols,
 		rows,
 		func(data []byte) {
-			if a.ctx != nil && sessionID != "" {
+			if a.ctx != nil {
 				a.sessionMgr.Touch(sessionID)
 				runtime.EventsEmit(a.ctx, "terminal:output:"+sessionID, string(data))
 			}
 		},
 		func() {
-			if a.ctx != nil && sessionID != "" {
-				a.sessionMgr.UpdateState(sessionID, models.SessionDisconnected, "")
+			if a.ctx != nil {
+				_ = a.sessionMgr.TransitionState(sessionID, models.SessionDisconnected, "")
 				runtime.EventsEmit(a.ctx, "terminal:closed:"+sessionID, sessionID)
 			}
 		},
 	)
 	if err != nil {
+		_ = a.sessionMgr.TransitionState(sessionID, models.SessionFailed, err.Error())
 		return "", err
 	}
-	sessionID = sess.ID
-	a.sessionMgr.CreateSession(sessionID, "local", "Local Shell", cols, rows)
-	a.sessionMgr.UpdateState(sessionID, models.SessionConnected, "")
-	return sess.ID, nil
+
+	a.transportReg.Register(trans)
+	_ = a.sessionMgr.TransitionState(sessionID, models.SessionConnected, "")
+	return sessionID, nil
 }
 
 func (a *App) StartSSHTerminal(hostID string, cols, rows int) (string, error) {
@@ -140,59 +157,89 @@ func (a *App) StartSSHTerminal(hostID string, cols, rows int) (string, error) {
 		return "", fmt.Errorf("host with ID %s not found", hostID)
 	}
 
-	var sessionID string
-	sess, err := a.sshManager.StartSession(
+	sessionID := fmt.Sprintf("ssh-%s-%d", hostID, time.Now().UnixNano())
+	a.sessionMgr.CreateSession(sessionID, hostID, host.Name, cols, rows)
+
+	trans := transport.NewSSHTransport(sessionID, host)
+	err := trans.Start(
 		a.ctx,
-		host,
 		cols,
 		rows,
 		func(data []byte) {
-			if a.ctx != nil && sessionID != "" {
+			if a.ctx != nil {
 				a.sessionMgr.Touch(sessionID)
 				runtime.EventsEmit(a.ctx, "terminal:output:"+sessionID, string(data))
 			}
 		},
 		func() {
-			if a.ctx != nil && sessionID != "" {
-				a.sessionMgr.UpdateState(sessionID, models.SessionDisconnected, "")
+			if a.ctx != nil {
+				_ = a.sessionMgr.TransitionState(sessionID, models.SessionDisconnected, "")
 				runtime.EventsEmit(a.ctx, "terminal:closed:"+sessionID, sessionID)
 			}
 		},
 	)
 	if err != nil {
+		_ = a.sessionMgr.TransitionState(sessionID, models.SessionFailed, err.Error())
 		return "", err
 	}
-	sessionID = sess.ID
-	a.sessionMgr.CreateSession(sessionID, hostID, host.Name, cols, rows)
-	a.sessionMgr.UpdateState(sessionID, models.SessionConnected, "")
-	return sess.ID, nil
+
+	a.transportReg.Register(trans)
+	_ = a.sessionMgr.TransitionState(sessionID, models.SessionConnected, "")
+	return sessionID, nil
+}
+
+func (a *App) StartDockerTerminal(containerID string, cols, rows int) (string, error) {
+	sessionID := fmt.Sprintf("docker-%s-%d", containerID, time.Now().UnixNano())
+	a.sessionMgr.CreateSession(sessionID, containerID, fmt.Sprintf("Docker: %s", containerID[:min(8, len(containerID))]), cols, rows)
+
+	trans := transport.NewDockerExecTransport(sessionID, containerID)
+	err := trans.Start(
+		a.ctx,
+		cols,
+		rows,
+		func(data []byte) {
+			if a.ctx != nil {
+				a.sessionMgr.Touch(sessionID)
+				runtime.EventsEmit(a.ctx, "terminal:output:"+sessionID, string(data))
+			}
+		},
+		func() {
+			if a.ctx != nil {
+				_ = a.sessionMgr.TransitionState(sessionID, models.SessionDisconnected, "")
+				runtime.EventsEmit(a.ctx, "terminal:closed:"+sessionID, sessionID)
+			}
+		},
+	)
+	if err != nil {
+		_ = a.sessionMgr.TransitionState(sessionID, models.SessionFailed, err.Error())
+		return "", err
+	}
+
+	a.transportReg.Register(trans)
+	_ = a.sessionMgr.TransitionState(sessionID, models.SessionConnected, "")
+	return sessionID, nil
 }
 
 func (a *App) SendTerminalInput(sessionID string, data string) error {
 	a.sessionMgr.Touch(sessionID)
-	if sess, ok := a.localManager.GetSession(sessionID); ok {
-		return sess.WriteInput([]byte(data))
+	trans, ok := a.transportReg.Get(sessionID)
+	if !ok {
+		return fmt.Errorf("transport session %s not found", sessionID)
 	}
-	if sess, ok := a.sshManager.GetSession(sessionID); ok {
-		return sess.WriteInput([]byte(data))
-	}
-	return fmt.Errorf("session %s not found", sessionID)
+	return trans.Write([]byte(data))
 }
 
 func (a *App) ResizeTerminal(sessionID string, cols, rows int) error {
-	if sess, ok := a.localManager.GetSession(sessionID); ok {
-		return sess.Resize(cols, rows)
+	trans, ok := a.transportReg.Get(sessionID)
+	if !ok {
+		return nil
 	}
-	if sess, ok := a.sshManager.GetSession(sessionID); ok {
-		return sess.Resize(cols, rows)
-	}
-	return nil
+	return trans.Resize(cols, rows)
 }
 
 func (a *App) CloseTerminal(sessionID string) {
+	a.transportReg.Remove(sessionID)
 	a.sessionMgr.CloseSession(sessionID)
-	a.localManager.RemoveSession(sessionID)
-	a.sshManager.RemoveSession(sessionID)
 }
 
 func (a *App) GetActiveSessions() []models.Session {
@@ -203,7 +250,11 @@ func (a *App) GetKnownHosts() []models.KnownHostRecord {
 	return a.knownHosts.GetKnownHosts()
 }
 
-// ==================== DISCOVERY & TOOLS ====================
+// ==================== UNIFIED RESOURCE GRAPH & PROVIDERS ====================
+
+func (a *App) DiscoverAllResources() []models.Resource {
+	return a.providerReg.DiscoverAll(a.ctx)
+}
 
 func (a *App) DiscoverSSHConfig() ([]models.Host, error) {
 	return a.sshDiscovery.Discover()
@@ -215,6 +266,28 @@ func (a *App) DiscoverDockerContainers() ([]discovery.DockerContainerInfo, error
 
 func (a *App) DetectSystemTools() []discovery.DetectedTool {
 	return a.toolDetector.DetectAll()
+}
+
+// ==================== DOCKER LIFECYCLE ACTIONS ====================
+
+func (a *App) DockerStartContainer(containerID string) error {
+	return a.dockerProv.StartContainer(a.ctx, containerID)
+}
+
+func (a *App) DockerStopContainer(containerID string) error {
+	return a.dockerProv.StopContainer(a.ctx, containerID)
+}
+
+func (a *App) DockerRestartContainer(containerID string) error {
+	return a.dockerProv.RestartContainer(a.ctx, containerID)
+}
+
+func (a *App) DockerRemoveContainer(containerID string) error {
+	return a.dockerProv.RemoveContainer(a.ctx, containerID)
+}
+
+func (a *App) DockerGetLogs(containerID string, tail int) (string, error) {
+	return a.dockerProv.GetLogs(a.ctx, containerID, tail)
 }
 
 // ==================== DIAGNOSTICS ====================
@@ -388,4 +461,11 @@ func (a *App) LaunchRemoteIDE(ideName string, hostID string, remotePath string) 
 		return fmt.Errorf("host %s not found", hostID)
 	}
 	return a.ideLauncher.LaunchRemoteIDE(ideName, host, remotePath)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

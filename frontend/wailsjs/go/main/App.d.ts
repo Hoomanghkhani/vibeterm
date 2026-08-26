@@ -21,9 +21,21 @@ export function DeleteSnippet(arg1:string):Promise<void>;
 
 export function DetectSystemTools():Promise<Array<discovery.DetectedTool>>;
 
+export function DiscoverAllResources():Promise<Array<models.Resource>>;
+
 export function DiscoverDockerContainers():Promise<Array<discovery.DockerContainerInfo>>;
 
 export function DiscoverSSHConfig():Promise<Array<models.Host>>;
+
+export function DockerGetLogs(arg1:string,arg2:number):Promise<string>;
+
+export function DockerRemoveContainer(arg1:string):Promise<void>;
+
+export function DockerRestartContainer(arg1:string):Promise<void>;
+
+export function DockerStartContainer(arg1:string):Promise<void>;
+
+export function DockerStopContainer(arg1:string):Promise<void>;
 
 export function GetActiveRemoteServices():Promise<Array<services.ActiveServiceStatus>>;
 
@@ -66,6 +78,8 @@ export function SaveSnippet(arg1:models.Snippet):Promise<void>;
 export function ScanSubnet(arg1:string,arg2:Array<number>):Promise<Array<models.DiscoveredDevice>>;
 
 export function SendTerminalInput(arg1:string,arg2:string):Promise<void>;
+
+export function StartDockerTerminal(arg1:string,arg2:number,arg3:number):Promise<string>;
 
 export function StartLocalTerminal(arg1:number,arg2:number):Promise<string>;
 

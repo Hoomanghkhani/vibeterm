@@ -26,12 +26,36 @@ export function DetectSystemTools() {
   return window['go']['main']['App']['DetectSystemTools']();
 }
 
+export function DiscoverAllResources() {
+  return window['go']['main']['App']['DiscoverAllResources']();
+}
+
 export function DiscoverDockerContainers() {
   return window['go']['main']['App']['DiscoverDockerContainers']();
 }
 
 export function DiscoverSSHConfig() {
   return window['go']['main']['App']['DiscoverSSHConfig']();
+}
+
+export function DockerGetLogs(arg1, arg2) {
+  return window['go']['main']['App']['DockerGetLogs'](arg1, arg2);
+}
+
+export function DockerRemoveContainer(arg1) {
+  return window['go']['main']['App']['DockerRemoveContainer'](arg1);
+}
+
+export function DockerRestartContainer(arg1) {
+  return window['go']['main']['App']['DockerRestartContainer'](arg1);
+}
+
+export function DockerStartContainer(arg1) {
+  return window['go']['main']['App']['DockerStartContainer'](arg1);
+}
+
+export function DockerStopContainer(arg1) {
+  return window['go']['main']['App']['DockerStopContainer'](arg1);
 }
 
 export function GetActiveRemoteServices() {
@@ -116,6 +140,10 @@ export function ScanSubnet(arg1, arg2) {
 
 export function SendTerminalInput(arg1, arg2) {
   return window['go']['main']['App']['SendTerminalInput'](arg1, arg2);
+}
+
+export function StartDockerTerminal(arg1, arg2, arg3) {
+  return window['go']['main']['App']['StartDockerTerminal'](arg1, arg2, arg3);
 }
 
 export function StartLocalTerminal(arg1, arg2) {

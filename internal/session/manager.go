@@ -1,13 +1,46 @@
 package session
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"vibeterm/internal/models"
 )
 
-// SessionManager manages active sessions and their lifecycle state machine
+// Finite-State Machine Transition Rules for Sessions
+var validTransitions = map[models.SessionState][]models.SessionState{
+	models.SessionConnecting: {
+		models.SessionConnected,
+		models.SessionFailed,
+		models.SessionDisconnected,
+	},
+	models.SessionConnected: {
+		models.SessionDegraded,
+		models.SessionDisconnected,
+		models.SessionReconnecting,
+	},
+	models.SessionDegraded: {
+		models.SessionConnected,
+		models.SessionDisconnected,
+		models.SessionReconnecting,
+	},
+	models.SessionReconnecting: {
+		models.SessionConnected,
+		models.SessionFailed,
+		models.SessionDisconnected,
+	},
+	models.SessionFailed: {
+		models.SessionReconnecting,
+		models.SessionDisconnected,
+		models.SessionConnecting,
+	},
+	models.SessionDisconnected: {
+		models.SessionConnecting,
+	},
+}
+
+// SessionManager manages active sessions and enforces lifecycle FSM rules
 type SessionManager struct {
 	mu       sync.RWMutex
 	sessions map[string]*models.Session
@@ -46,16 +79,42 @@ func (sm *SessionManager) CreateSession(sessionID, hostID, title string, cols, r
 	return sess
 }
 
-// UpdateState transitions session state
-func (sm *SessionManager) UpdateState(sessionID string, state models.SessionState, errMsg string) {
+// TransitionState safely validates and transitions the session state machine
+func (sm *SessionManager) TransitionState(sessionID string, targetState models.SessionState, errMsg string) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	if sess, ok := sm.sessions[sessionID]; ok {
-		sess.State = state
-		sess.ErrorMessage = errMsg
-		sess.LastActiveAt = time.Now()
+	sess, ok := sm.sessions[sessionID]
+	if !ok {
+		return fmt.Errorf("session %s not found", sessionID)
 	}
+
+	currentState := sess.State
+	if currentState == targetState {
+		return nil
+	}
+
+	allowed := false
+	for _, valid := range validTransitions[currentState] {
+		if valid == targetState {
+			allowed = true
+			break
+		}
+	}
+
+	if !allowed {
+		return fmt.Errorf("invalid session transition from '%s' to '%s'", currentState, targetState)
+	}
+
+	sess.State = targetState
+	sess.ErrorMessage = errMsg
+	sess.LastActiveAt = time.Now()
+	return nil
+}
+
+// UpdateState transitions session state (convenience with fallback)
+func (sm *SessionManager) UpdateState(sessionID string, state models.SessionState, errMsg string) {
+	_ = sm.TransitionState(sessionID, state, errMsg)
 }
 
 // Touch updates last active timestamp
@@ -93,9 +152,12 @@ func (sm *SessionManager) GetAllSessions() []models.Session {
 	return list
 }
 
-// CloseSession marks a session disconnected and removes it
+// CloseSession transitions to disconnected and cleans up
 func (sm *SessionManager) CloseSession(sessionID string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
+	if sess, ok := sm.sessions[sessionID]; ok {
+		sess.State = models.SessionDisconnected
+	}
 	delete(sm.sessions, sessionID)
 }
