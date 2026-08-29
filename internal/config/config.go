@@ -119,10 +119,6 @@ func (cm *ConfigManager) Save() error {
 }
 
 func (cm *ConfigManager) saveLocked() error {
-	dir := filepath.Dir(cm.configPath)
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return err
-	}
 	data, err := json.MarshalIndent(cm.config, "", "  ")
 	if err != nil {
 		return err
@@ -440,4 +436,3 @@ func (cm *ConfigManager) SaveGitOpsConfig(cfg models.GitOpsConfig) error {
 	cm.config.GitOps = cfg
 	return cm.saveLocked()
 }
-

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -33,7 +32,6 @@ func TestAES256GCMEncryption(t *testing.T) {
 
 func TestHostStorage(t *testing.T) {
 	cm := GetInstance()
-	cm.configPath = filepath.Join(t.TempDir(), "config.json")
 
 	testHost := models.Host{
 		ID:          "test-node-01",

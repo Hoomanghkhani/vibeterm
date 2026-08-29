@@ -73,7 +73,7 @@ export const SidebarSFTP: React.FC<SidebarSFTPProps> = ({ hosts = [], activeHost
 
     useEffect(() => {
         if (selectedHostId) {
-            loadFiles('.').catch(() => loadFiles('/'));
+            loadFiles('/root').catch(() => loadFiles('/'));
         }
     }, [selectedHostId]);
 

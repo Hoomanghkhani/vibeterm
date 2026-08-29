@@ -51,11 +51,14 @@ func (m *SFTPManager) ListDirectory(ctx context.Context, host models.Host, remot
 	}
 	defer sftpClient.Close()
 
-	if remotePath == "" || remotePath == "." {
+	if remotePath == "" {
+		remotePath = "."
+	}
+
+	// Resolve absolute path or pwd
+	if remotePath == "." {
 		if pwd, err := sftpClient.Getwd(); err == nil && pwd != "" {
 			remotePath = pwd
-		} else {
-			remotePath = "/"
 		}
 	}
 
