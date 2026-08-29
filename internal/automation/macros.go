@@ -3,7 +3,6 @@ package automation
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 )

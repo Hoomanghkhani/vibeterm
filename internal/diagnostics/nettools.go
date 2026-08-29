@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -25,7 +26,7 @@ func NewNetDiagnostics() *NetDiagnostics {
 // TestTCPConnect measures TCP handshake latency to target host:port
 func (nd *NetDiagnostics) TestTCPConnect(target string, port int, timeout time.Duration) DiagnosticsResult {
 	start := time.Now()
-	addr := fmt.Sprintf("%s:%d", target, port)
+	addr := net.JoinHostPort(target, strconv.Itoa(port))
 
 	d := net.Dialer{Timeout: timeout}
 	conn, err := d.Dial("tcp", addr)
